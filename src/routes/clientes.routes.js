@@ -4,8 +4,12 @@ const {
   listarClientes,
   crearCliente
 } = require("../controllers/clientes.controller");
+const {
+  verificarToken,
+  verificarRol
+} = require("../middlewares/auth.middleware");
 
-router.get("/", listarClientes);
-router.post("/", crearCliente);
+router.get("/", verificarToken, listarClientes);
+router.post("/", verificarToken, verificarRol("ADMINISTRADOR", "OPERADOR"), crearCliente);
 
 module.exports = router;

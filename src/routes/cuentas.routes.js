@@ -4,8 +4,12 @@ const {
   listarCuentas,
   crearCuenta
 } = require("../controllers/cuentas.controller");
+const {
+  verificarToken,
+  verificarRol
+} = require("../middlewares/auth.middleware");
 
-router.get("/", listarCuentas);
-router.post("/", crearCuenta);
+router.get("/", verificarToken, listarCuentas);
+router.post("/", verificarToken, verificarRol("ADMINISTRADOR", "OPERADOR"), crearCuenta);
 
 module.exports = router;
