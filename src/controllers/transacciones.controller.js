@@ -17,7 +17,8 @@ async function crearDeposito(req, res) {
   const conn = await pool.getConnection();
 
   try {
-    const { id_cuenta_destino, monto, descripcion, id_usuario } = req.body;
+    const { id_cuenta_destino, monto, descripcion } = req.body;
+    const id_usuario = req.usuario.id_usuario;
 
     await conn.beginTransaction();
 
@@ -30,15 +31,15 @@ async function crearDeposito(req, res) {
       throw new Error("La cuenta destino no existe");
     }
 
+    const saldoAnterior = Number(cuenta.saldo);
+    const saldoNuevo = saldoAnterior + Number(monto);
+
     const [trx] = await conn.query(
       `INSERT INTO transacciones
       (id_tipo_transaccion, id_cuenta_destino, monto, descripcion, estado, id_usuario)
       VALUES (?, ?, ?, ?, 'COMPLETADA', ?)`,
       [1, id_cuenta_destino, monto, descripcion || "Depósito", id_usuario]
     );
-
-    const saldoAnterior = Number(cuenta.saldo);
-    const saldoNuevo = saldoAnterior + Number(monto);
 
     await conn.query(
       "UPDATE cuentas SET saldo = ? WHERE id_cuenta = ?",
@@ -288,6 +289,175 @@ async function crearTransferenciaInterna(req, res) {
   }
 }
 
+async function crearTransferenciaEntrante(req, res) {
+  const conn = await pool.getConnection();
+
+  try {
+    const {
+      id_cuenta_destino,
+      monto,
+      descripcion,
+      id_banco_origen,
+      cuenta_origen_externa,
+      titular_origen,
+      codigo_referencia_externa
+    } = req.body;
+
+    const id_usuario = req.usuario.id_usuario;
+
+    if (
+      !id_cuenta_destino ||
+      !monto ||
+      !id_banco_origen ||
+      !cuenta_origen_externa ||
+      !codigo_referencia_externa
+    ) {
+      return res.status(400).json({
+        message: "Faltan datos obligatorios para la transferencia entrante"
+      });
+    }
+
+    if (Number(monto) <= 0) {
+      return res.status(400).json({
+        message: "El monto debe ser mayor a 0"
+      });
+    }
+
+    await conn.beginTransaction();
+
+    const [[cuentaDestino]] = await conn.query(
+      `SELECT * FROM cuentas
+       WHERE id_cuenta = ? AND estado = 'ACTIVA'
+       FOR UPDATE`,
+      [id_cuenta_destino]
+    );
+
+    if (!cuentaDestino) {
+      throw new Error("La cuenta destino no existe o no está activa");
+    }
+
+    const [[bancoOrigen]] = await conn.query(
+      `SELECT id_banco, nombre
+       FROM bancos
+       WHERE id_banco = ? AND estado = 'ACTIVO'`,
+      [id_banco_origen]
+    );
+
+    if (!bancoOrigen) {
+      throw new Error("El banco origen no existe o no está activo");
+    }
+
+    const [[referenciaExistente]] = await conn.query(
+      `SELECT id_transferencia_entrante
+       FROM transferencias_externas_entrantes
+       WHERE codigo_referencia_externa = ?`,
+      [codigo_referencia_externa]
+    );
+
+    if (referenciaExistente) {
+      return res.status(409).json({
+        message: "La referencia externa ya fue procesada anteriormente"
+      });
+    }
+
+    const [[tipo]] = await conn.query(
+      `SELECT id_tipo_transaccion
+       FROM tipos_transaccion
+       WHERE nombre = 'TRANSFERENCIA_EXTERNA_ENTRANTE'`
+    );
+
+    if (!tipo) {
+      throw new Error("No existe el tipo de transacción TRANSFERENCIA_EXTERNA_ENTRANTE");
+    }
+
+    const montoTransferencia = Number(monto);
+    const saldoAnterior = Number(cuentaDestino.saldo);
+    const saldoNuevo = saldoAnterior + montoTransferencia;
+
+    const [trx] = await conn.query(
+      `INSERT INTO transacciones
+      (id_tipo_transaccion, id_cuenta_destino, monto, descripcion, estado, id_usuario)
+      VALUES (?, ?, ?, ?, 'COMPLETADA', ?)`,
+      [
+        tipo.id_tipo_transaccion,
+        id_cuenta_destino,
+        montoTransferencia,
+        descripcion || "Transferencia externa entrante",
+        id_usuario
+      ]
+    );
+
+    await conn.query(
+      `UPDATE cuentas
+       SET saldo = ?
+       WHERE id_cuenta = ?`,
+      [saldoNuevo, id_cuenta_destino]
+    );
+
+    await conn.query(
+      `INSERT INTO movimientos_cuenta
+      (id_cuenta, id_transaccion, tipo_movimiento, monto, saldo_anterior, saldo_nuevo)
+      VALUES (?, ?, 'CREDITO', ?, ?, ?)`,
+      [id_cuenta_destino, trx.insertId, montoTransferencia, saldoAnterior, saldoNuevo]
+    );
+
+    const [entrada] = await conn.query(
+      `INSERT INTO transferencias_externas_entrantes
+      (id_transaccion, banco_origen, id_banco_origen, cuenta_origen_externa, titular_origen,
+       codigo_referencia_externa, estado_recepcion, mensaje_respuesta)
+      VALUES (?, ?, ?, ?, ?, ?, 'APLICADA', ?)`,
+      [
+        trx.insertId,
+        bancoOrigen.nombre,
+        bancoOrigen.id_banco,
+        cuenta_origen_externa,
+        titular_origen || null,
+        codigo_referencia_externa,
+        "Transferencia aplicada correctamente"
+      ]
+    );
+
+    await conn.commit();
+
+    await registrarAuditoria({
+      accion: "TRANSFERENCIA_EXTERNA_ENTRANTE",
+      entidad: "transferencias_externas_entrantes",
+      entidad_id: entrada.insertId,
+      usuario_id: id_usuario,
+      detalle: {
+        id_transaccion: trx.insertId,
+        id_cuenta_destino,
+        id_banco_origen: bancoOrigen.id_banco,
+        banco_origen: bancoOrigen.nombre,
+        cuenta_origen_externa,
+        monto: montoTransferencia,
+        codigo_referencia_externa
+      }
+    });
+
+    await registrarLog({
+      nivel: "INFO",
+      modulo: "TRANSACCIONES",
+      mensaje: "Transferencia externa entrante aplicada correctamente",
+      transaccion_id: trx.insertId,
+      usuario_id: id_usuario
+    });
+
+    res.status(201).json({
+      message: "Transferencia externa entrante registrada correctamente",
+      id_transaccion: trx.insertId,
+      id_transferencia_entrante: entrada.insertId,
+      banco_origen: bancoOrigen.nombre,
+      saldo_nuevo: saldoNuevo
+    });
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({ message: error.message });
+  } finally {
+    conn.release();
+  }
+}
+
 async function crearTransferenciaExterna(req, res) {
   const conn = await pool.getConnection();
 
@@ -297,16 +467,28 @@ async function crearTransferenciaExterna(req, res) {
       monto,
       descripcion,
       api_externa_nombre,
+      id_banco_destino,
       cuenta_destino_externa,
-      titular_destino,
-      banco_destino
+      titular_destino
     } = req.body;
 
     const id_usuario = req.usuario.id_usuario;
 
-    if (!id_cuenta_origen || !monto || !api_externa_nombre || !cuenta_destino_externa) {
+    if (
+      !id_cuenta_origen ||
+      !monto ||
+      !api_externa_nombre ||
+      !id_banco_destino ||
+      !cuenta_destino_externa
+    ) {
       return res.status(400).json({
         message: "Faltan datos obligatorios para la transferencia externa"
+      });
+    }
+
+    if (Number(monto) <= 0) {
+      return res.status(400).json({
+        message: "El monto debe ser mayor a 0"
       });
     }
 
@@ -321,6 +503,17 @@ async function crearTransferenciaExterna(req, res) {
 
     if (!cuentaOrigen) {
       throw new Error("La cuenta origen no existe o no está activa");
+    }
+
+    const [[bancoDestino]] = await conn.query(
+      `SELECT id_banco, nombre
+       FROM bancos
+       WHERE id_banco = ? AND estado = 'ACTIVO'`,
+      [id_banco_destino]
+    );
+
+    if (!bancoDestino) {
+      throw new Error("El banco destino no existe o no está activo");
     }
 
     const montoTransferencia = Number(monto);
@@ -358,14 +551,15 @@ async function crearTransferenciaExterna(req, res) {
     const [extResult] = await conn.query(
       `INSERT INTO transferencias_externas
       (id_transaccion, api_externa_nombre, cuenta_destino_externa, titular_destino, banco_destino,
-       codigo_referencia_interna, estado_envio)
-      VALUES (?, ?, ?, ?, ?, ?, 'PENDIENTE')`,
+       id_banco_destino, codigo_referencia_interna, estado_envio)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDIENTE')`,
       [
         trx.insertId,
         api_externa_nombre,
         cuenta_destino_externa,
         titular_destino || null,
-        banco_destino || null,
+        bancoDestino.nombre,
+        bancoDestino.id_banco,
         referenciaInterna
       ]
     );
@@ -378,21 +572,25 @@ async function crearTransferenciaExterna(req, res) {
     let mensajeRespuesta = null;
 
     try {
-      respuestaExterna = await axios.post(process.env.API_EXTERNA_URL, {
-        referencia_interna: referenciaInterna,
-        cuenta_destino: cuenta_destino_externa,
-        titular_destino,
-        banco_destino,
-        monto: montoTransferencia,
-        moneda: cuentaOrigen.moneda,
-        descripcion
-      }, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.API_EXTERNA_TOKEN || ""}`
+      respuestaExterna = await axios.post(
+        process.env.API_EXTERNA_URL,
+        {
+          referencia_interna: referenciaInterna,
+          cuenta_destino: cuenta_destino_externa,
+          titular_destino,
+          banco_destino: bancoDestino.nombre,
+          monto: montoTransferencia,
+          moneda: cuentaOrigen.moneda,
+          descripcion
         },
-        timeout: 15000
-      });
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.API_EXTERNA_TOKEN || ""}`
+          },
+          timeout: 15000
+        }
+      );
 
       httpStatusCode = respuestaExterna.status;
       codigoReferenciaExterna = respuestaExterna.data?.referencia_externa || null;
@@ -406,12 +604,15 @@ async function crearTransferenciaExterna(req, res) {
       estadoTransaccion = "RECHAZADA";
 
       await conn.query(
-        `UPDATE cuentas SET saldo = ? WHERE id_cuenta = ?`,
+        `UPDATE cuentas
+         SET saldo = ?
+         WHERE id_cuenta = ?`,
         [saldoAnterior, id_cuenta_origen]
       );
 
       await conn.query(
-        `DELETE FROM movimientos_cuenta WHERE id_transaccion = ?`,
+        `DELETE FROM movimientos_cuenta
+         WHERE id_transaccion = ?`,
         [trx.insertId]
       );
     }
@@ -451,6 +652,8 @@ async function crearTransferenciaExterna(req, res) {
       usuario_id: id_usuario,
       detalle: {
         id_transaccion: trx.insertId,
+        id_banco_destino: bancoDestino.id_banco,
+        banco_destino: bancoDestino.nombre,
         cuenta_destino_externa,
         monto: montoTransferencia,
         estado_envio: estadoEnvio
@@ -470,6 +673,7 @@ async function crearTransferenciaExterna(req, res) {
       id_transaccion: trx.insertId,
       referencia_interna: referenciaInterna,
       referencia_externa: codigoReferenciaExterna,
+      banco_destino: bancoDestino.nombre,
       estado: estadoEnvio,
       mensaje_respuesta: mensajeRespuesta
     });
@@ -481,10 +685,13 @@ async function crearTransferenciaExterna(req, res) {
   }
 }
 
+
+
 module.exports = {
   listarTransacciones,
   crearDeposito,
   crearRetiro,
   crearTransferenciaInterna,
-  crearTransferenciaExterna
-};
+  crearTransferenciaExterna,
+  crearTransferenciaEntrante
+};  

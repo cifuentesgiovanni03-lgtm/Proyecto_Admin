@@ -1,0 +1,200 @@
+adminroot
+
+use erp_bancario_logs
+
+db.createCollection("logs_sistema")
+db.createCollection("auditoria")
+db.createCollection("reportes_generados")
+
+db.logs_sistema.createIndex({ fecha: 1 })
+db.logs_sistema.createIndex({ transaccion_id: 1 })
+db.logs_sistema.createIndex({ usuario_id: 1 })
+
+db.auditoria.createIndex({ fecha: 1 })
+db.auditoria.createIndex({ entidad: 1, entidad_id: 1 })
+db.auditoria.createIndex({ usuario_id: 1 })
+
+db.reportes_generados.createIndex({ fecha_generacion: 1 })
+db.reportes_generados.createIndex({ usuario_id: 1 })
+db.reportes_generados.createIndex({ tipo_reporte: 1 })
+
+INSERT INTO roles (nombre, descripcion) VALUES
+('ADMINISTRADOR', 'Acceso total al sistema'),
+('OPERADOR', 'Gestión operativa'),
+('CAJERO', 'Registro de operaciones');
+
+INSERT INTO permisos (nombre, descripcion) VALUES
+('GESTIONAR_USUARIOS', 'Crear y editar usuarios'),
+('GESTIONAR_CLIENTES', 'Crear y editar clientes'),
+('GESTIONAR_CUENTAS', 'Crear y administrar cuentas'),
+('REGISTRAR_TRANSACCIONES', 'Registrar depósitos, retiros y transferencias'),
+('REALIZAR_TRANSFERENCIAS_EXTERNAS', 'Enviar transferencias a sistemas externos'),
+('VER_REPORTES', 'Consultar reportes');
+
+INSERT INTO tipos_cuenta (nombre, descripcion) VALUES
+('AHORRO', 'Cuenta de ahorro'),
+('CORRIENTE', 'Cuenta corriente');
+
+INSERT INTO tipos_transaccion (nombre, descripcion) VALUES
+('DEPOSITO', 'Ingreso de dinero'),
+('RETIRO', 'Salida de dinero'),
+('TRANSFERENCIA_INTERNA', 'Transferencia entre cuentas del mismo sistema'),
+('TRANSFERENCIA_EXTERNA', 'Transferencia hacia sistema externo');
+
+Crear tablas en MySQL
+
+Entra a la base:
+
+USE erp_bancario;
+
+Y ejecuta este script completo:
+
+CREATE TABLE roles (
+    id_rol INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE,
+    descripcion VARCHAR(150)
+);
+
+CREATE TABLE usuarios (
+    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    nombre_completo VARCHAR(100) NOT NULL,
+    correo VARCHAR(100) NOT NULL UNIQUE,
+    estado ENUM('ACTIVO','INACTIVO') NOT NULL DEFAULT 'ACTIVO',
+    fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id_rol INT NOT NULL,
+    FOREIGN KEY (id_rol) REFERENCES roles(id_rol)
+);
+
+CREATE TABLE permisos (
+    id_permiso INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    descripcion VARCHAR(150)
+);
+
+CREATE TABLE rol_permiso (
+    id_rol INT NOT NULL,
+    id_permiso INT NOT NULL,
+    PRIMARY KEY (id_rol, id_permiso),
+    FOREIGN KEY (id_rol) REFERENCES roles(id_rol),
+    FOREIGN KEY (id_permiso) REFERENCES permisos(id_permiso)
+);
+
+CREATE TABLE clientes (
+    id_cliente INT AUTO_INCREMENT PRIMARY KEY,
+    nombres VARCHAR(100) NOT NULL,
+    apellidos VARCHAR(100) NOT NULL,
+    dpi VARCHAR(20) NOT NULL UNIQUE,
+    nit VARCHAR(20),
+    fecha_nacimiento DATE,
+    telefono VARCHAR(20),
+    correo VARCHAR(100),
+    direccion VARCHAR(200),
+    estado ENUM('ACTIVO','INACTIVO') NOT NULL DEFAULT 'ACTIVO',
+    fecha_registro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE tipos_cuenta (
+    id_tipo_cuenta INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE,
+    descripcion VARCHAR(150)
+);
+
+CREATE TABLE cuentas (
+    id_cuenta INT AUTO_INCREMENT PRIMARY KEY,
+    numero_cuenta VARCHAR(30) NOT NULL UNIQUE,
+    id_cliente INT NOT NULL,
+    id_tipo_cuenta INT NOT NULL,
+    saldo DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    moneda VARCHAR(10) NOT NULL DEFAULT 'GTQ',
+    estado ENUM('ACTIVA','INACTIVA','BLOQUEADA','CERRADA') NOT NULL DEFAULT 'ACTIVA',
+    fecha_apertura DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
+    FOREIGN KEY (id_tipo_cuenta) REFERENCES tipos_cuenta(id_tipo_cuenta)
+);
+
+CREATE TABLE tipos_transaccion (
+    id_tipo_transaccion INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE,
+    descripcion VARCHAR(150)
+);
+
+CREATE TABLE transacciones (
+    id_transaccion BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id_tipo_transaccion INT NOT NULL,
+    id_cuenta_origen INT NULL,
+    id_cuenta_destino INT NULL,
+    monto DECIMAL(15,2) NOT NULL,
+    moneda VARCHAR(10) NOT NULL DEFAULT 'GTQ',
+    descripcion VARCHAR(200),
+    estado ENUM('PENDIENTE','PROCESANDO','COMPLETADA','RECHAZADA','REVERSADA') NOT NULL DEFAULT 'PENDIENTE',
+    fecha_transaccion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id_usuario INT NOT NULL,
+    FOREIGN KEY (id_tipo_transaccion) REFERENCES tipos_transaccion(id_tipo_transaccion),
+    FOREIGN KEY (id_cuenta_origen) REFERENCES cuentas(id_cuenta),
+    FOREIGN KEY (id_cuenta_destino) REFERENCES cuentas(id_cuenta),
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+);
+
+CREATE TABLE movimientos_cuenta (
+    id_movimiento BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id_cuenta INT NOT NULL,
+    id_transaccion BIGINT NOT NULL,
+    tipo_movimiento ENUM('DEBITO','CREDITO') NOT NULL,
+    monto DECIMAL(15,2) NOT NULL,
+    saldo_anterior DECIMAL(15,2) NOT NULL,
+    saldo_nuevo DECIMAL(15,2) NOT NULL,
+    fecha_movimiento DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_cuenta) REFERENCES cuentas(id_cuenta),
+    FOREIGN KEY (id_transaccion) REFERENCES transacciones(id_transaccion)
+);
+
+CREATE TABLE transferencias_externas (
+    id_transferencia_externa BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id_transaccion BIGINT NOT NULL,
+    api_externa_nombre VARCHAR(100) NOT NULL,
+    cuenta_destino_externa VARCHAR(100) NOT NULL,
+    titular_destino VARCHAR(150),
+    banco_destino VARCHAR(100),
+    codigo_referencia_interna VARCHAR(100) NOT NULL UNIQUE,
+    codigo_referencia_externa VARCHAR(100),
+    estado_envio ENUM('PENDIENTE','ENVIADA','CONFIRMADA','FALLIDA') NOT NULL DEFAULT 'PENDIENTE',
+    http_status_code INT,
+    mensaje_respuesta VARCHAR(255),
+    fecha_envio DATETIME,
+    fecha_confirmacion DATETIME,
+    FOREIGN KEY (id_transaccion) REFERENCES transacciones(id_transaccion)
+);
+
+CREATE TABLE transferencias_externas_entrantes (
+    id_transferencia_entrante BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id_transaccion BIGINT NOT NULL,
+    banco_origen VARCHAR(100) NOT NULL,
+    cuenta_origen_externa VARCHAR(100) NOT NULL,
+    titular_origen VARCHAR(150),
+    codigo_referencia_externa VARCHAR(100) NOT NULL UNIQUE,
+    estado_recepcion ENUM('PENDIENTE','APLICADA','RECHAZADA') NOT NULL DEFAULT 'APLICADA',
+    mensaje_respuesta VARCHAR(255),
+    fecha_recepcion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_transaccion) REFERENCES transacciones(id_transaccion)
+);
+
+CREATE TABLE bancos (
+    id_banco INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    codigo_banco VARCHAR(20) NOT NULL UNIQUE,
+    pais VARCHAR(50) DEFAULT 'Guatemala',
+    estado ENUM('ACTIVO','INACTIVO') NOT NULL DEFAULT 'ACTIVO',
+    fecha_registro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE transferencias_externas_entrantes
+ADD COLUMN id_banco_origen INT NULL,
+ADD CONSTRAINT fk_transferencias_entrantes_banco_origen
+FOREIGN KEY (id_banco_origen) REFERENCES bancos(id_banco);
+
+ALTER TABLE transferencias_externas
+ADD COLUMN id_banco_destino INT NULL,
+ADD CONSTRAINT fk_transferencias_externas_banco_destino
+FOREIGN KEY (id_banco_destino) REFERENCES bancos(id_banco);
