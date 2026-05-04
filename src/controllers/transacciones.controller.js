@@ -1,12 +1,11 @@
 const axios = require("axios");
 const pool = require("../config/mysql");
+const transaccionModel = require("../models/transaccion.model");
 const { registrarAuditoria, registrarLog } = require("../services/auditoria.service");
 
 async function listarTransacciones(req, res) {
   try {
-    const [rows] = await pool.query(
-      `SELECT * FROM transacciones ORDER BY id_transaccion DESC`
-    );
+    const rows = await transaccionModel.findAll();
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -22,43 +21,16 @@ async function crearDeposito(req, res) {
 
     await conn.beginTransaction();
 
-    const [[cuenta]] = await conn.query(
-      "SELECT * FROM cuentas WHERE id_cuenta = ? FOR UPDATE",
-      [id_cuenta_destino]
-    );
-
-    if (!cuenta) {
-      throw new Error("La cuenta destino no existe");
-    }
-
-    const saldoAnterior = Number(cuenta.saldo);
-    const saldoNuevo = saldoAnterior + Number(monto);
-
-    const [trx] = await conn.query(
-      `INSERT INTO transacciones
-      (id_tipo_transaccion, id_cuenta_destino, monto, descripcion, estado, id_usuario)
-      VALUES (?, ?, ?, ?, 'COMPLETADA', ?)`,
-      [1, id_cuenta_destino, monto, descripcion || "Depósito", id_usuario]
-    );
-
-    await conn.query(
-      "UPDATE cuentas SET saldo = ? WHERE id_cuenta = ?",
-      [saldoNuevo, id_cuenta_destino]
-    );
-
-    await conn.query(
-      `INSERT INTO movimientos_cuenta
-      (id_cuenta, id_transaccion, tipo_movimiento, monto, saldo_anterior, saldo_nuevo)
-      VALUES (?, ?, 'CREDITO', ?, ?, ?)`,
-      [id_cuenta_destino, trx.insertId, monto, saldoAnterior, saldoNuevo]
-    );
+    const { id_transaccion } = await transaccionModel.crearDeposito(conn, {
+      id_cuenta_destino, monto, descripcion, id_usuario
+    });
 
     await conn.commit();
 
     await registrarAuditoria({
       accion: "DEPOSITO",
       entidad: "transacciones",
-      entidad_id: trx.insertId,
+      entidad_id: id_transaccion,
       detalle: { id_cuenta_destino, monto }
     });
 
@@ -66,12 +38,12 @@ async function crearDeposito(req, res) {
       nivel: "INFO",
       modulo: "TRANSACCIONES",
       mensaje: "Depósito registrado",
-      transaccion_id: trx.insertId
+      transaccion_id: id_transaccion
     });
 
     res.status(201).json({
       message: "Depósito realizado correctamente",
-      id_transaccion: trx.insertId
+      id_transaccion
     });
   } catch (error) {
     await conn.rollback();
@@ -96,69 +68,32 @@ async function crearRetiro(req, res) {
 
     await conn.beginTransaction();
 
-    const [[cuenta]] = await conn.query(
-      `SELECT * FROM cuentas
-       WHERE id_cuenta = ? AND estado = 'ACTIVA'
-       FOR UPDATE`,
-      [id_cuenta_origen]
-    );
-
-    if (!cuenta) {
-      throw new Error("La cuenta origen no existe o no está activa");
-    }
-
-    const saldoAnterior = Number(cuenta.saldo);
-    const montoRetiro = Number(monto);
-
-    if (saldoAnterior < montoRetiro) {
-      throw new Error("Saldo insuficiente");
-    }
-
-    const [trx] = await conn.query(
-      `INSERT INTO transacciones
-      (id_tipo_transaccion, id_cuenta_origen, monto, descripcion, estado, id_usuario)
-      VALUES (?, ?, ?, ?, 'COMPLETADA', ?)`,
-      [2, id_cuenta_origen, montoRetiro, descripcion || "Retiro", id_usuario]
-    );
-
-    const saldoNuevo = saldoAnterior - montoRetiro;
-
-    await conn.query(
-      `UPDATE cuentas
-       SET saldo = ?
-       WHERE id_cuenta = ?`,
-      [saldoNuevo, id_cuenta_origen]
-    );
-
-    await conn.query(
-      `INSERT INTO movimientos_cuenta
-      (id_cuenta, id_transaccion, tipo_movimiento, monto, saldo_anterior, saldo_nuevo)
-      VALUES (?, ?, 'DEBITO', ?, ?, ?)`,
-      [id_cuenta_origen, trx.insertId, montoRetiro, saldoAnterior, saldoNuevo]
-    );
+    const { id_transaccion, saldo_nuevo } = await transaccionModel.crearRetiro(conn, {
+      id_cuenta_origen, monto, descripcion, id_usuario
+    });
 
     await conn.commit();
 
     await registrarAuditoria({
       accion: "RETIRO",
       entidad: "transacciones",
-      entidad_id: trx.insertId,
+      entidad_id: id_transaccion,
       usuario_id: id_usuario,
-      detalle: { id_cuenta_origen, monto: montoRetiro }
+      detalle: { id_cuenta_origen, monto }
     });
 
     await registrarLog({
       nivel: "INFO",
       modulo: "TRANSACCIONES",
       mensaje: "Retiro realizado correctamente",
-      transaccion_id: trx.insertId,
+      transaccion_id: id_transaccion,
       usuario_id: id_usuario
     });
 
     res.status(201).json({
       message: "Retiro realizado correctamente",
-      id_transaccion: trx.insertId,
-      saldo_nuevo: saldoNuevo
+      id_transaccion,
+      saldo_nuevo
     });
   } catch (error) {
     await conn.rollback();
@@ -181,105 +116,36 @@ async function crearTransferenciaInterna(req, res) {
       });
     }
 
-    if (id_cuenta_origen === id_cuenta_destino) {
-      return res.status(400).json({
-        message: "La cuenta origen y destino no pueden ser la misma"
-      });
-    }
-
     await conn.beginTransaction();
 
-    const [[cuentaOrigen]] = await conn.query(
-      `SELECT * FROM cuentas
-       WHERE id_cuenta = ? AND estado = 'ACTIVA'
-       FOR UPDATE`,
-      [id_cuenta_origen]
-    );
-
-    const [[cuentaDestino]] = await conn.query(
-      `SELECT * FROM cuentas
-       WHERE id_cuenta = ? AND estado = 'ACTIVA'
-       FOR UPDATE`,
-      [id_cuenta_destino]
-    );
-
-    if (!cuentaOrigen) {
-      throw new Error("La cuenta origen no existe o no está activa");
-    }
-
-    if (!cuentaDestino) {
-      throw new Error("La cuenta destino no existe o no está activa");
-    }
-
-    const montoTransferencia = Number(monto);
-    const saldoOrigenAnterior = Number(cuentaOrigen.saldo);
-    const saldoDestinoAnterior = Number(cuentaDestino.saldo);
-
-    if (saldoOrigenAnterior < montoTransferencia) {
-      throw new Error("Saldo insuficiente en la cuenta origen");
-    }
-
-    const [trx] = await conn.query(
-      `INSERT INTO transacciones
-      (id_tipo_transaccion, id_cuenta_origen, id_cuenta_destino, monto, descripcion, estado, id_usuario)
-      VALUES (?, ?, ?, ?, ?, 'COMPLETADA', ?)`,
-      [3, id_cuenta_origen, id_cuenta_destino, montoTransferencia, descripcion || "Transferencia interna", id_usuario]
-    );
-
-    const saldoOrigenNuevo = saldoOrigenAnterior - montoTransferencia;
-    const saldoDestinoNuevo = saldoDestinoAnterior + montoTransferencia;
-
-    await conn.query(
-      `UPDATE cuentas SET saldo = ? WHERE id_cuenta = ?`,
-      [saldoOrigenNuevo, id_cuenta_origen]
-    );
-
-    await conn.query(
-      `UPDATE cuentas SET saldo = ? WHERE id_cuenta = ?`,
-      [saldoDestinoNuevo, id_cuenta_destino]
-    );
-
-    await conn.query(
-      `INSERT INTO movimientos_cuenta
-      (id_cuenta, id_transaccion, tipo_movimiento, monto, saldo_anterior, saldo_nuevo)
-      VALUES (?, ?, 'DEBITO', ?, ?, ?)`,
-      [id_cuenta_origen, trx.insertId, montoTransferencia, saldoOrigenAnterior, saldoOrigenNuevo]
-    );
-
-    await conn.query(
-      `INSERT INTO movimientos_cuenta
-      (id_cuenta, id_transaccion, tipo_movimiento, monto, saldo_anterior, saldo_nuevo)
-      VALUES (?, ?, 'CREDITO', ?, ?, ?)`,
-      [id_cuenta_destino, trx.insertId, montoTransferencia, saldoDestinoAnterior, saldoDestinoNuevo]
-    );
+    const { id_transaccion, saldo_origen_nuevo, saldo_destino_nuevo } =
+      await transaccionModel.crearTransferenciaInterna(conn, {
+        id_cuenta_origen, id_cuenta_destino, monto, descripcion, id_usuario
+      });
 
     await conn.commit();
 
     await registrarAuditoria({
       accion: "TRANSFERENCIA_INTERNA",
       entidad: "transacciones",
-      entidad_id: trx.insertId,
+      entidad_id: id_transaccion,
       usuario_id: id_usuario,
-      detalle: {
-        id_cuenta_origen,
-        id_cuenta_destino,
-        monto: montoTransferencia
-      }
+      detalle: { id_cuenta_origen, id_cuenta_destino, monto }
     });
 
     await registrarLog({
       nivel: "INFO",
       modulo: "TRANSACCIONES",
       mensaje: "Transferencia interna realizada correctamente",
-      transaccion_id: trx.insertId,
+      transaccion_id: id_transaccion,
       usuario_id: id_usuario
     });
 
     res.status(201).json({
       message: "Transferencia interna realizada correctamente",
-      id_transaccion: trx.insertId,
-      saldo_origen_nuevo: saldoOrigenNuevo,
-      saldo_destino_nuevo: saldoDestinoNuevo
+      id_transaccion,
+      saldo_origen_nuevo,
+      saldo_destino_nuevo
     });
   } catch (error) {
     await conn.rollback();
@@ -294,23 +160,16 @@ async function crearTransferenciaEntrante(req, res) {
 
   try {
     const {
-      id_cuenta_destino,
-      monto,
-      descripcion,
-      id_banco_origen,
-      cuenta_origen_externa,
-      titular_origen,
+      id_cuenta_destino, monto, descripcion,
+      id_banco_origen, cuenta_origen_externa, titular_origen,
       codigo_referencia_externa
     } = req.body;
 
     const id_usuario = req.usuario.id_usuario;
 
     if (
-      !id_cuenta_destino ||
-      !monto ||
-      !id_banco_origen ||
-      !cuenta_origen_externa ||
-      !codigo_referencia_externa
+      !id_cuenta_destino || !monto ||
+      !id_banco_origen || !cuenta_origen_externa || !codigo_referencia_externa
     ) {
       return res.status(400).json({
         message: "Faltan datos obligatorios para la transferencia entrante"
@@ -325,112 +184,26 @@ async function crearTransferenciaEntrante(req, res) {
 
     await conn.beginTransaction();
 
-    const [[cuentaDestino]] = await conn.query(
-      `SELECT * FROM cuentas
-       WHERE id_cuenta = ? AND estado = 'ACTIVA'
-       FOR UPDATE`,
-      [id_cuenta_destino]
-    );
-
-    if (!cuentaDestino) {
-      throw new Error("La cuenta destino no existe o no está activa");
-    }
-
-    const [[bancoOrigen]] = await conn.query(
-      `SELECT id_banco, nombre
-       FROM bancos
-       WHERE id_banco = ? AND estado = 'ACTIVO'`,
-      [id_banco_origen]
-    );
-
-    if (!bancoOrigen) {
-      throw new Error("El banco origen no existe o no está activo");
-    }
-
-    const [[referenciaExistente]] = await conn.query(
-      `SELECT id_transferencia_entrante
-       FROM transferencias_externas_entrantes
-       WHERE codigo_referencia_externa = ?`,
-      [codigo_referencia_externa]
-    );
-
-    if (referenciaExistente) {
-      return res.status(409).json({
-        message: "La referencia externa ya fue procesada anteriormente"
-      });
-    }
-
-    const [[tipo]] = await conn.query(
-      `SELECT id_tipo_transaccion
-       FROM tipos_transaccion
-       WHERE nombre = 'TRANSFERENCIA_EXTERNA_ENTRANTE'`
-    );
-
-    if (!tipo) {
-      throw new Error("No existe el tipo de transacción TRANSFERENCIA_EXTERNA_ENTRANTE");
-    }
-
-    const montoTransferencia = Number(monto);
-    const saldoAnterior = Number(cuentaDestino.saldo);
-    const saldoNuevo = saldoAnterior + montoTransferencia;
-
-    const [trx] = await conn.query(
-      `INSERT INTO transacciones
-      (id_tipo_transaccion, id_cuenta_destino, monto, descripcion, estado, id_usuario)
-      VALUES (?, ?, ?, ?, 'COMPLETADA', ?)`,
-      [
-        tipo.id_tipo_transaccion,
-        id_cuenta_destino,
-        montoTransferencia,
-        descripcion || "Transferencia externa entrante",
-        id_usuario
-      ]
-    );
-
-    await conn.query(
-      `UPDATE cuentas
-       SET saldo = ?
-       WHERE id_cuenta = ?`,
-      [saldoNuevo, id_cuenta_destino]
-    );
-
-    await conn.query(
-      `INSERT INTO movimientos_cuenta
-      (id_cuenta, id_transaccion, tipo_movimiento, monto, saldo_anterior, saldo_nuevo)
-      VALUES (?, ?, 'CREDITO', ?, ?, ?)`,
-      [id_cuenta_destino, trx.insertId, montoTransferencia, saldoAnterior, saldoNuevo]
-    );
-
-    const [entrada] = await conn.query(
-      `INSERT INTO transferencias_externas_entrantes
-      (id_transaccion, banco_origen, id_banco_origen, cuenta_origen_externa, titular_origen,
-       codigo_referencia_externa, estado_recepcion, mensaje_respuesta)
-      VALUES (?, ?, ?, ?, ?, ?, 'APLICADA', ?)`,
-      [
-        trx.insertId,
-        bancoOrigen.nombre,
-        bancoOrigen.id_banco,
-        cuenta_origen_externa,
-        titular_origen || null,
-        codigo_referencia_externa,
-        "Transferencia aplicada correctamente"
-      ]
-    );
+    const resultado = await transaccionModel.crearTransferenciaEntrante(conn, {
+      id_cuenta_destino, monto, descripcion,
+      id_banco_origen, cuenta_origen_externa, titular_origen,
+      codigo_referencia_externa, id_usuario
+    });
 
     await conn.commit();
 
     await registrarAuditoria({
       accion: "TRANSFERENCIA_EXTERNA_ENTRANTE",
       entidad: "transferencias_externas_entrantes",
-      entidad_id: entrada.insertId,
+      entidad_id: resultado.id_transferencia_entrante,
       usuario_id: id_usuario,
       detalle: {
-        id_transaccion: trx.insertId,
+        id_transaccion: resultado.id_transaccion,
         id_cuenta_destino,
-        id_banco_origen: bancoOrigen.id_banco,
-        banco_origen: bancoOrigen.nombre,
+        id_banco_origen,
+        banco_origen: resultado.banco_origen,
         cuenta_origen_externa,
-        monto: montoTransferencia,
+        monto,
         codigo_referencia_externa
       }
     });
@@ -439,19 +212,24 @@ async function crearTransferenciaEntrante(req, res) {
       nivel: "INFO",
       modulo: "TRANSACCIONES",
       mensaje: "Transferencia externa entrante aplicada correctamente",
-      transaccion_id: trx.insertId,
+      transaccion_id: resultado.id_transaccion,
       usuario_id: id_usuario
     });
 
     res.status(201).json({
       message: "Transferencia externa entrante registrada correctamente",
-      id_transaccion: trx.insertId,
-      id_transferencia_entrante: entrada.insertId,
-      banco_origen: bancoOrigen.nombre,
-      saldo_nuevo: saldoNuevo
+      id_transaccion: resultado.id_transaccion,
+      id_transferencia_entrante: resultado.id_transferencia_entrante,
+      banco_origen: resultado.banco_origen,
+      saldo_nuevo: resultado.saldo_nuevo
     });
   } catch (error) {
     await conn.rollback();
+    if (error.code === "DUPLICADO_REFERENCIA") {
+      return res.status(409).json({
+        message: error.message
+      });
+    }
     res.status(500).json({ message: error.message });
   } finally {
     conn.release();
@@ -463,23 +241,15 @@ async function crearTransferenciaExterna(req, res) {
 
   try {
     const {
-      id_cuenta_origen,
-      monto,
-      descripcion,
-      api_externa_nombre,
-      id_banco_destino,
-      cuenta_destino_externa,
-      titular_destino
+      id_cuenta_origen, monto, descripcion,
+      api_externa_nombre, id_banco_destino, cuenta_destino_externa, titular_destino
     } = req.body;
 
     const id_usuario = req.usuario.id_usuario;
 
     if (
-      !id_cuenta_origen ||
-      !monto ||
-      !api_externa_nombre ||
-      !id_banco_destino ||
-      !cuenta_destino_externa
+      !id_cuenta_origen || !monto || !api_externa_nombre ||
+      !id_banco_destino || !cuenta_destino_externa
     ) {
       return res.status(400).json({
         message: "Faltan datos obligatorios para la transferencia externa"
@@ -494,153 +264,14 @@ async function crearTransferenciaExterna(req, res) {
 
     await conn.beginTransaction();
 
-    const [[cuentaOrigen]] = await conn.query(
-      `SELECT * FROM cuentas
-       WHERE id_cuenta = ? AND estado = 'ACTIVA'
-       FOR UPDATE`,
-      [id_cuenta_origen]
-    );
-
-    if (!cuentaOrigen) {
-      throw new Error("La cuenta origen no existe o no está activa");
-    }
-
-    const [[bancoDestino]] = await conn.query(
-      `SELECT id_banco, nombre
-       FROM bancos
-       WHERE id_banco = ? AND estado = 'ACTIVO'`,
-      [id_banco_destino]
-    );
-
-    if (!bancoDestino) {
-      throw new Error("El banco destino no existe o no está activo");
-    }
-
-    const montoTransferencia = Number(monto);
-    const saldoAnterior = Number(cuentaOrigen.saldo);
-
-    if (saldoAnterior < montoTransferencia) {
-      throw new Error("Saldo insuficiente en la cuenta origen");
-    }
-
-    const [trx] = await conn.query(
-      `INSERT INTO transacciones
-      (id_tipo_transaccion, id_cuenta_origen, monto, descripcion, estado, id_usuario)
-      VALUES (?, ?, ?, ?, 'PROCESANDO', ?)`,
-      [4, id_cuenta_origen, montoTransferencia, descripcion || "Transferencia externa", id_usuario]
-    );
-
-    const saldoNuevo = saldoAnterior - montoTransferencia;
-
-    await conn.query(
-      `UPDATE cuentas
-       SET saldo = ?
-       WHERE id_cuenta = ?`,
-      [saldoNuevo, id_cuenta_origen]
-    );
-
-    await conn.query(
-      `INSERT INTO movimientos_cuenta
-      (id_cuenta, id_transaccion, tipo_movimiento, monto, saldo_anterior, saldo_nuevo)
-      VALUES (?, ?, 'DEBITO', ?, ?, ?)`,
-      [id_cuenta_origen, trx.insertId, montoTransferencia, saldoAnterior, saldoNuevo]
-    );
-
-    const referenciaInterna = `TRXEXT-${trx.insertId}-${Date.now()}`;
-
-    const [extResult] = await conn.query(
-      `INSERT INTO transferencias_externas
-      (id_transaccion, api_externa_nombre, cuenta_destino_externa, titular_destino, banco_destino,
-       id_banco_destino, codigo_referencia_interna, estado_envio)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDIENTE')`,
-      [
-        trx.insertId,
-        api_externa_nombre,
-        cuenta_destino_externa,
-        titular_destino || null,
-        bancoDestino.nombre,
-        bancoDestino.id_banco,
-        referenciaInterna
-      ]
-    );
-
-    let respuestaExterna;
-    let estadoEnvio = "FALLIDA";
-    let estadoTransaccion = "RECHAZADA";
-    let codigoReferenciaExterna = null;
-    let httpStatusCode = null;
-    let mensajeRespuesta = null;
-
-    try {
-      respuestaExterna = await axios.post(
-        process.env.API_EXTERNA_URL,
-        {
-          referencia_interna: referenciaInterna,
-          cuenta_destino: cuenta_destino_externa,
-          titular_destino,
-          banco_destino: bancoDestino.nombre,
-          monto: montoTransferencia,
-          moneda: cuentaOrigen.moneda,
-          descripcion
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.API_EXTERNA_TOKEN || ""}`
-          },
-          timeout: 15000
-        }
-      );
-
-      httpStatusCode = respuestaExterna.status;
-      codigoReferenciaExterna = respuestaExterna.data?.referencia_externa || null;
-      mensajeRespuesta = respuestaExterna.data?.mensaje || "Transferencia enviada";
-      estadoEnvio = "CONFIRMADA";
-      estadoTransaccion = "COMPLETADA";
-    } catch (apiError) {
-      httpStatusCode = apiError.response?.status || null;
-      mensajeRespuesta = apiError.response?.data?.message || apiError.message;
-      estadoEnvio = "FALLIDA";
-      estadoTransaccion = "RECHAZADA";
-
-      await conn.query(
-        `UPDATE cuentas
-         SET saldo = ?
-         WHERE id_cuenta = ?`,
-        [saldoAnterior, id_cuenta_origen]
-      );
-
-      await conn.query(
-        `DELETE FROM movimientos_cuenta
-         WHERE id_transaccion = ?`,
-        [trx.insertId]
-      );
-    }
-
-    await conn.query(
-      `UPDATE transacciones
-       SET estado = ?
-       WHERE id_transaccion = ?`,
-      [estadoTransaccion, trx.insertId]
-    );
-
-    await conn.query(
-      `UPDATE transferencias_externas
-       SET codigo_referencia_externa = ?,
-           estado_envio = ?,
-           http_status_code = ?,
-           mensaje_respuesta = ?,
-           fecha_envio = NOW(),
-           fecha_confirmacion = CASE WHEN ? = 'CONFIRMADA' THEN NOW() ELSE NULL END
-       WHERE id_transferencia_externa = ?`,
-      [
-        codigoReferenciaExterna,
-        estadoEnvio,
-        httpStatusCode,
-        mensajeRespuesta,
-        estadoEnvio,
-        extResult.insertId
-      ]
+    const resultado = await transaccionModel.crearTransferenciaExterna(
+      conn,
+      {
+        id_cuenta_origen, monto, descripcion,
+        api_externa_nombre, id_banco_destino, cuenta_destino_externa, titular_destino,
+        id_usuario
+      },
+      axios
     );
 
     await conn.commit();
@@ -648,34 +279,34 @@ async function crearTransferenciaExterna(req, res) {
     await registrarAuditoria({
       accion: "TRANSFERENCIA_EXTERNA",
       entidad: "transferencias_externas",
-      entidad_id: extResult.insertId,
+      entidad_id: resultado.id_transaccion,
       usuario_id: id_usuario,
       detalle: {
-        id_transaccion: trx.insertId,
-        id_banco_destino: bancoDestino.id_banco,
-        banco_destino: bancoDestino.nombre,
+        id_transaccion: resultado.id_transaccion,
+        id_banco_destino,
+        banco_destino: resultado.banco_destino,
         cuenta_destino_externa,
-        monto: montoTransferencia,
-        estado_envio: estadoEnvio
+        monto,
+        estado_envio: resultado.estado
       }
     });
 
     await registrarLog({
-      nivel: estadoEnvio === "CONFIRMADA" ? "INFO" : "ERROR",
+      nivel: resultado.estado === "CONFIRMADA" ? "INFO" : "ERROR",
       modulo: "TRANSACCIONES",
       mensaje: "Transferencia externa procesada",
-      transaccion_id: trx.insertId,
+      transaccion_id: resultado.id_transaccion,
       usuario_id: id_usuario
     });
 
     res.status(201).json({
       message: "Transferencia externa procesada",
-      id_transaccion: trx.insertId,
-      referencia_interna: referenciaInterna,
-      referencia_externa: codigoReferenciaExterna,
-      banco_destino: bancoDestino.nombre,
-      estado: estadoEnvio,
-      mensaje_respuesta: mensajeRespuesta
+      id_transaccion: resultado.id_transaccion,
+      referencia_interna: resultado.referencia_interna,
+      referencia_externa: resultado.referencia_externa,
+      banco_destino: resultado.banco_destino,
+      estado: resultado.estado,
+      mensaje_respuesta: resultado.mensaje_respuesta
     });
   } catch (error) {
     await conn.rollback();
@@ -685,8 +316,6 @@ async function crearTransferenciaExterna(req, res) {
   }
 }
 
-
-
 module.exports = {
   listarTransacciones,
   crearDeposito,
@@ -694,4 +323,4 @@ module.exports = {
   crearTransferenciaInterna,
   crearTransferenciaExterna,
   crearTransferenciaEntrante
-};  
+};

@@ -1,9 +1,9 @@
-const pool = require("../config/mysql");
+const clienteModel = require("../models/cliente.model");
 const { registrarAuditoria } = require("../services/auditoria.service");
 
 async function listarClientes(req, res) {
   try {
-    const [rows] = await pool.query("SELECT * FROM clientes ORDER BY id_cliente DESC");
+    const rows = await clienteModel.findAll();
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -23,23 +23,18 @@ async function crearCliente(req, res) {
       direccion
     } = req.body;
 
-    const [result] = await pool.query(
-      `INSERT INTO clientes
-      (nombres, apellidos, dpi, nit, fecha_nacimiento, telefono, correo, direccion)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [nombres, apellidos, dpi, nit, fecha_nacimiento, telefono, correo, direccion]
-    );
+    const id_cliente = await clienteModel.create(req.body);
 
     await registrarAuditoria({
       accion: "CREAR_CLIENTE",
       entidad: "clientes",
-      entidad_id: result.insertId,
+      entidad_id: id_cliente,
       detalle: { nombres, apellidos, dpi }
     });
 
     res.status(201).json({
       message: "Cliente creado correctamente",
-      id_cliente: result.insertId
+      id_cliente
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
