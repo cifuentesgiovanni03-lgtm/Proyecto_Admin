@@ -12,6 +12,14 @@ async function findAll() {
   return rows;
 }
 
+async function findByIdSimple(id_cuenta) {
+  const [rows] = await pool.query(
+    "SELECT * FROM cuentas WHERE id_cuenta = ?",
+    [id_cuenta]
+  );
+  return rows[0] || null;
+}
+
 async function create(data) {
   const { numero_cuenta, id_cliente, id_tipo_cuenta, saldo, moneda } = data;
 
@@ -22,6 +30,25 @@ async function create(data) {
     [numero_cuenta, id_cliente, id_tipo_cuenta, saldo || 0, moneda || "GTQ"]
   );
   return result.insertId;
+}
+
+async function updateDatos(id_cuenta, data) {
+  const { numero_cuenta, id_tipo_cuenta, moneda, estado } = data;
+
+  await pool.query(
+    `UPDATE cuentas
+     SET numero_cuenta = ?, id_tipo_cuenta = ?, moneda = ?, estado = ?
+     WHERE id_cuenta = ?`,
+    [numero_cuenta, id_tipo_cuenta, moneda, estado, id_cuenta]
+  );
+}
+
+async function deleteById(id_cuenta) {
+  const [result] = await pool.query(
+    "DELETE FROM cuentas WHERE id_cuenta = ?",
+    [id_cuenta]
+  );
+  return result.affectedRows > 0;
 }
 
 async function findById(id_cuenta) {
@@ -51,7 +78,7 @@ async function findByIdForUpdate(conn, id_cuenta) {
 
 async function updateSaldo(conn, id_cuenta, nuevoSaldo) {
   await conn.query(
-    `UPDATE cuentas SET saldo = ? WHERE id_cuenta = ?`,
+    "UPDATE cuentas SET saldo = ? WHERE id_cuenta = ?",
     [nuevoSaldo, id_cuenta]
   );
 }
@@ -102,14 +129,17 @@ async function insertMovimiento(conn, data) {
 
 async function deleteMovimientosByTransaccionId(conn, id_transaccion) {
   await conn.query(
-    `DELETE FROM movimientos_cuenta WHERE id_transaccion = ?`,
+    "DELETE FROM movimientos_cuenta WHERE id_transaccion = ?",
     [id_transaccion]
   );
 }
 
 module.exports = {
   findAll,
+  findByIdSimple,
   create,
+  updateDatos,
+  deleteById,
   findById,
   findByIdForUpdate,
   updateSaldo,

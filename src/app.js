@@ -13,6 +13,10 @@ const cuentasRoutes = require("./routes/cuentas.routes");
 const transaccionesRoutes = require("./routes/transacciones.routes");
 const reportesRoutes = require("./routes/reportes.routes");
 const bancosRoutes = require("./routes/bancos.routes");
+const usuariosRoutes = require("./routes/usuarios.routes");
+const rolesRoutes = require("./routes/roles.routes");
+const permisosRoutes = require("./routes/permisos.routes");
+const publicRoutes = require("./routes/public.routes");
 
 const app = express();
 
@@ -51,6 +55,10 @@ app.use("/api/cuentas", cuentasRoutes);
 app.use("/api/transacciones", transaccionesRoutes);
 app.use("/api/reportes", reportesRoutes);
 app.use("/api/bancos", bancosRoutes);
+app.use("/api/usuarios", usuariosRoutes);
+app.use("/api/roles", rolesRoutes);
+app.use("/api/permisos", permisosRoutes);
+app.use("/api/public", publicRoutes);
 
 const PORT = process.env.PORT || 3000;
 

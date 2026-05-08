@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ERP Bancario - Test</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="login-screen" class="screen">
+    <div class="login-box">
+      <h1>ERP Bancario</h1>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-username">Usuario</label>
+          <input type="text" id="login-username" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="login-password">Contrase&ntilde;a</label>
+          <input type="password" id="login-password" required autocomplete="current-password">
+        </div>
+        <button type="submit">Iniciar Sesi&oacute;n</button>
+        <p id="login-error" class="error"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard-screen" class="screen hidden">
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <h2>ERP Bancario</h2>
+        <p id="user-info"></p>
+      </div>
+      <ul class="nav-links">
+        <li><a href="#" class="nav-link active" data-section="bancos">Bancos</a></li>
+        <li><a href="#" class="nav-link" data-section="clientes">Clientes</a></li>
+        <li><a href="#" class="nav-link" data-section="cuentas">Cuentas</a></li>
+        <li><a href="#" class="nav-link" data-section="transacciones">Transacciones</a></li>
+        <li><a href="#" class="nav-link" data-section="reportes">Reportes</a></li>
+        <li><a href="#" class="nav-link" data-section="usuarios">Usuarios</a></li>
+        <li><a href="#" class="nav-link" data-section="roles">Roles</a></li>
+        <li><a href="#" class="nav-link" data-section="permisos">Permisos</a></li>
+      </ul>
+      <button id="logout-btn" class="logout-btn">Cerrar Sesi&oacute;n</button>
+    </nav>
+
+    <main class="content">
+
+      <!-- BANCOS -->
+      <section id="sec-bancos" class="section">
+        <h2>Bancos</h2>
+        <form id="form-banco" class="form-inline">
+          <input type="text" id="banco-nombre" placeholder="Nombre" required>
+          <input type="text" id="banco-codigo" placeholder="C&oacute;digo" required>
+          <input type="text" id="banco-pais" placeholder="Pa&iacute;s" value="Guatemala">
+          <button type="submit">Crear Banco</button>
+        </form>
+        <button class="btn-secondary" onclick="loadBancos()">Refrescar</button>
+        <div id="bancos-list" class="list"></div>
+      </section>
+
+      <!-- CLIENTES -->
+      <section id="sec-clientes" class="section hidden">
+        <h2>Clientes</h2>
+        <form id="form-cliente">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nombres</label>
+              <input type="text" id="cliente-nombres" required>
+            </div>
+            <div class="form-group">
+              <label>Apellidos</label>
+              <input type="text" id="cliente-apellidos" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>DPI</label>
+              <input type="text" id="cliente-dpi" required>
+            </div>
+            <div class="form-group">
+              <label>NIT</label>
+              <input type="text" id="cliente-nit">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tel&eacute;fono</label>
+              <input type="text" id="cliente-telefono">
+            </div>
+            <div class="form-group">
+              <label>Correo</label>
+              <input type="email" id="cliente-correo">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Direcci&oacute;n</label>
+            <input type="text" id="cliente-direccion">
+          </div>
+          <button type="submit">Crear Cliente</button>
+        </form>
+        <button class="btn-secondary" onclick="loadClientes()">Refrescar</button>
+        <div id="clientes-list" class="list"></div>
+      </section>
+
+      <!-- CUENTAS -->
+      <section id="sec-cuentas" class="section hidden">
+        <h2>Cuentas</h2>
+        <form id="form-cuenta" class="form-inline">
+          <input type="text" id="cuenta-numero" placeholder="N&uacute;mero de cuenta" required>
+          <input type="number" id="cuenta-id-cliente" placeholder="ID Cliente" required>
+          <select id="cuenta-tipo">
+            <option value="1">AHORRO</option>
+            <option value="2">CORRIENTE</option>
+          </select>
+          <input type="number" id="cuenta-saldo" placeholder="Saldo inicial" value="0" step="0.01">
+          <select id="cuenta-moneda">
+            <option value="GTQ">GTQ</option>
+            <option value="USD">USD</option>
+          </select>
+          <button type="submit">Crear Cuenta</button>
+        </form>
+        <button class="btn-secondary" onclick="loadCuentas()">Refrescar</button>
+        <div id="cuentas-list" class="list"></div>
+
+        <h3>Movimientos de Cuenta</h3>
+        <form id="form-movimientos" class="form-inline">
+          <input type="number" id="mov-id-cuenta" placeholder="ID Cuenta" required>
+          <button type="submit">Ver Movimientos</button>
+        </form>
+        <div id="movimientos-result" class="list"></div>
+      </section>
+
+      <!-- TRANSACCIONES -->
+      <section id="sec-transacciones" class="section hidden">
+        <h2>Transacciones</h2>
+
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="deposito">Dep&oacute;sito</button>
+          <button class="tab-btn" data-tab="retiro">Retiro</button>
+          <button class="tab-btn" data-tab="transferencia">Transferencia Interna</button>
+          <button class="tab-btn" data-tab="transferencia-ext">Transferencia Externa</button>
+          <button class="tab-btn" data-tab="transferencia-ent">Transferencia Entrante</button>
+        </div>
+
+        <!-- Deposito -->
+        <div id="tab-deposito" class="tab-content">
+          <form id="form-deposito" class="form-inline">
+            <input type="number" id="dep-cuenta" placeholder="ID Cuenta destino" required>
+            <input type="number" id="dep-monto" placeholder="Monto" step="0.01" required>
+            <input type="text" id="dep-desc" placeholder="Descripci&oacute;n">
+            <button type="submit">Depositar</button>
+          </form>
+          <div id="dep-result" class="result"></div>
+        </div>
+
+        <!-- Retiro -->
+        <div id="tab-retiro" class="tab-content hidden">
+          <form id="form-retiro" class="form-inline">
+            <input type="number" id="ret-cuenta" placeholder="ID Cuenta origen" required>
+            <input type="number" id="ret-monto" placeholder="Monto" step="0.01" required>
+            <input type="text" id="ret-desc" placeholder="Descripci&oacute;n">
+            <button type="submit">Retirar</button>
+          </form>
+          <div id="ret-result" class="result"></div>
+        </div>
+
+        <!-- Transferencia Interna -->
+        <div id="tab-transferencia" class="tab-content hidden">
+          <form id="form-transferencia" class="form-inline">
+            <input type="number" id="trans-origen" placeholder="ID Cuenta origen" required>
+            <input type="number" id="trans-destino" placeholder="ID Cuenta destino" required>
+            <input type="number" id="trans-monto" placeholder="Monto" step="0.01" required>
+            <input type="text" id="trans-desc" placeholder="Descripci&oacute;n">
+            <button type="submit">Transferir</button>
+          </form>
+          <div id="trans-result" class="result"></div>
+        </div>
+
+        <!-- Transferencia Externa -->
+        <div id="tab-transferencia-ext" class="tab-content hidden">
+          <form id="form-transferencia-ext">
+            <div class="form-row">
+              <div class="form-group">
+                <label>ID Cuenta origen</label>
+                <input type="number" id="ext-origen" required>
+              </div>
+              <div class="form-group">
+                <label>Monto</label>
+                <input type="number" id="ext-monto" step="0.01" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>API externa nombre</label>
+                <input type="text" id="ext-api" required>
+              </div>
+              <div class="form-group">
+                <label>ID Banco destino</label>
+                <input type="number" id="ext-banco" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Cuenta destino externa</label>
+                <input type="text" id="ext-cuenta-dest" required>
+              </div>
+              <div class="form-group">
+                <label>Titular destino</label>
+                <input type="text" id="ext-titular">
+              </div>
+            </div>
+            <button type="submit">Enviar Transferencia</button>
+          </form>
+          <div id="ext-result" class="result"></div>
+        </div>
+
+        <!-- Transferencia Entrante -->
+        <div id="tab-transferencia-ent" class="tab-content hidden">
+          <form id="form-transferencia-ent">
+            <div class="form-row">
+              <div class="form-group">
+                <label>ID Cuenta destino</label>
+                <input type="number" id="ent-destino" required>
+              </div>
+              <div class="form-group">
+                <label>Monto</label>
+                <input type="number" id="ent-monto" step="0.01" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>ID Banco origen</label>
+                <input type="number" id="ent-banco" required>
+              </div>
+              <div class="form-group">
+                <label>Cuenta origen externa</label>
+                <input type="text" id="ent-cuenta-orig" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>C&oacute;digo referencia</label>
+                <input type="text" id="ent-ref" required>
+              </div>
+              <div class="form-group">
+                <label>Titular origen</label>
+                <input type="text" id="ent-titular">
+              </div>
+            </div>
+            <button type="submit">Registrar Transferencia</button>
+          </form>
+          <div id="ent-result" class="result"></div>
+        </div>
+      </section>
+
+      <!-- REPORTES -->
+      <section id="sec-reportes" class="section hidden">
+        <h2>Reportes</h2>
+
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="rep-transacciones">Transacciones</button>
+          <button class="tab-btn" data-tab="rep-clientes">Clientes</button>
+          <button class="tab-btn" data-tab="rep-saldos">Saldos</button>
+        </div>
+
+        <!-- Reporte Transacciones -->
+        <div id="tab-rep-transacciones" class="tab-content">
+          <form id="form-rep-transacciones" class="form-inline">
+            <input type="date" id="rep-trans-inicio" required>
+            <input type="date" id="rep-trans-fin" required>
+            <button type="submit">Generar</button>
+          </form>
+          <div id="rep-trans-result" class="list"></div>
+        </div>
+
+        <!-- Reporte Clientes -->
+        <div id="tab-rep-clientes" class="tab-content hidden">
+          <button onclick="loadReporteClientes()" class="btn-primary">Generar</button>
+          <div id="rep-clientes-result" class="list"></div>
+        </div>
+
+        <!-- Reporte Saldos -->
+        <div id="tab-rep-saldos" class="tab-content hidden">
+          <button onclick="loadReporteSaldos()" class="btn-primary">Generar</button>
+          <div id="rep-saldos-result" class="list"></div>
+        </div>
+      </section>
+
+      <!-- USUARIOS -->
+      <section id="sec-usuarios" class="section hidden">
+        <h2>Usuarios</h2>
+        <form id="form-usuario">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" id="user-username" required>
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input type="password" id="user-password" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nombre completo</label>
+              <input type="text" id="user-nombre" required>
+            </div>
+            <div class="form-group">
+              <label>Correo</label>
+              <input type="email" id="user-correo" required>
+            </div>
+          </div>
+            <div class="form-group">
+              <label>Rol</label>
+              <select id="user-rol">
+                <option value="1">ADMINISTRADOR</option>
+                <option value="2">OPERADOR</option>
+                <option value="3">CAJERO</option>
+              </select>
+            </div>
+          <button type="submit">Crear Usuario</button>
+        </form>
+        <button class="btn-secondary" onclick="loadUsuarios()">Refrescar</button>
+        <div id="usuarios-list" class="list"></div>
+      </section>
+
+      <!-- ROLES -->
+      <section id="sec-roles" class="section hidden">
+        <h2>Roles</h2>
+        <form id="form-rol" class="form-inline">
+          <input type="text" id="rol-nombre" placeholder="Nombre del rol" required>
+          <input type="text" id="rol-desc" placeholder="Descripcion">
+          <button type="submit">Crear Rol</button>
+        </form>
+        <button class="btn-secondary" onclick="loadRoles()">Refrescar</button>
+        <div id="roles-list" class="list"></div>
+      </section>
+
+      <!-- PERMISOS -->
+      <section id="sec-permisos" class="section hidden">
+        <h2>Permisos</h2>
+        <form id="form-permiso" class="form-inline">
+          <input type="text" id="perm-nombre" placeholder="Nombre del permiso" required>
+          <input type="text" id="perm-desc" placeholder="Descripcion">
+          <button type="submit">Crear Permiso</button>
+        </form>
+        <button class="btn-secondary" onclick="loadPermisos()">Refrescar</button>
+        <div id="permisos-list" class="list"></div>
+      </section>
+
+      <!-- GLOBAL RESULT -->
+      <div id="global-message" class="message hidden"></div>
+
+    </main>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

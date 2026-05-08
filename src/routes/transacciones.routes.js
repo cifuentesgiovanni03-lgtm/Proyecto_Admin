@@ -45,8 +45,6 @@ router.post(
 
 router.post(
   "/transferencia-entrante",
-  verificarToken,
-  verificarRol("ADMINISTRADOR", "OPERADOR"),
   crearTransferenciaEntrante
 );
 

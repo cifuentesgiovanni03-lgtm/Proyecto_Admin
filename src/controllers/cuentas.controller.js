@@ -9,6 +9,21 @@ async function listarCuentas(req, res) {
   }
 }
 
+async function obtenerCuenta(req, res) {
+  try {
+    const { id_cuenta } = req.params;
+
+    const cuenta = await cuentaModel.findByIdSimple(id_cuenta);
+    if (!cuenta) {
+      return res.status(404).json({ message: "Cuenta no encontrada" });
+    }
+
+    res.json(cuenta);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
 async function crearCuenta(req, res) {
   try {
     const { numero_cuenta, id_cliente, id_tipo_cuenta, saldo, moneda } = req.body;
@@ -21,6 +36,44 @@ async function crearCuenta(req, res) {
       message: "Cuenta creada correctamente",
       id_cuenta
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function actualizarCuenta(req, res) {
+  try {
+    const { id_cuenta } = req.params;
+
+    const existe = await cuentaModel.findByIdSimple(id_cuenta);
+    if (!existe) {
+      return res.status(404).json({ message: "Cuenta no encontrada" });
+    }
+
+    const { numero_cuenta, id_tipo_cuenta, moneda, estado } = req.body;
+    await cuentaModel.updateDatos(id_cuenta, {
+      numero_cuenta,
+      id_tipo_cuenta: id_tipo_cuenta || existe.id_tipo_cuenta,
+      moneda: moneda || existe.moneda,
+      estado: estado || existe.estado
+    });
+
+    res.json({ message: "Cuenta actualizada correctamente" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function eliminarCuenta(req, res) {
+  try {
+    const { id_cuenta } = req.params;
+
+    const eliminado = await cuentaModel.deleteById(id_cuenta);
+    if (!eliminado) {
+      return res.status(404).json({ message: "Cuenta no encontrada" });
+    }
+
+    res.json({ message: "Cuenta eliminada correctamente" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -62,7 +115,9 @@ async function obtenerEstadoCuenta(req, res) {
     }
 
     if (!fecha_inicio || !fecha_fin) {
-      return res.status(400).json({ message: "fecha_inicio y fecha_fin son obligatorios" });
+      return res.status(400).json({
+        message: "fecha_inicio y fecha_fin son obligatorios"
+      });
     }
 
     const cuenta = await cuentaModel.findById(id_cuenta);
@@ -71,7 +126,9 @@ async function obtenerEstadoCuenta(req, res) {
       return res.status(404).json({ message: "La cuenta no existe" });
     }
 
-    const movimientos = await cuentaModel.getMovimientosByDateRange(id_cuenta, fecha_inicio, fecha_fin);
+    const movimientos = await cuentaModel.getMovimientosByDateRange(
+      id_cuenta, fecha_inicio, fecha_fin
+    );
 
     let totalCreditos = 0;
     let totalDebitos = 0;
@@ -125,7 +182,10 @@ async function obtenerEstadoCuenta(req, res) {
 
 module.exports = {
   listarCuentas,
+  obtenerCuenta,
   crearCuenta,
+  actualizarCuenta,
+  eliminarCuenta,
   obtenerMovimientosCuenta,
   obtenerEstadoCuenta
 };
