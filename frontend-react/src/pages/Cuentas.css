@@ -1,0 +1,38 @@
+.estado-resultado {
+  margin-top: 24px;
+}
+
+.estado-resumen {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.estado-item {
+  background: #0f1117;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.estado-item span {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.estado-item strong {
+  font-size: 1.3rem;
+  color: #ffffff;
+  font-family: 'Syne', sans-serif;
+}
+
+.badge-yellow {
+  background: rgba(234,179,8,0.1);
+  color: #facc15;
+  border: 1px solid rgba(234,179,8,0.2);
+}
