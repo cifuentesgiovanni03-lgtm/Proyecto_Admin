@@ -326,9 +326,47 @@ async function crearTransferenciaExterna(conn, {
   let mensajeRespuesta = null;
 
   try {
-    respuestaExterna = await axios.post(
-      process.env.API_EXTERNA_URL,
-      {
+    // 1. Obtener token JWT si el banco tiene api_auth_url
+    let token = bancoDestino.api_token || process.env.API_EXTERNA_TOKEN || "";
+    if (bancoDestino.api_auth_url) {
+      const authBody = {
+        email: bancoDestino.api_auth_email,
+        password: bancoDestino.api_auth_password
+      };
+      const authResp = await axios.post(bancoDestino.api_auth_url, authBody, {
+        headers: { "Content-Type": "application/json" },
+        timeout: 15000
+      });
+      token = authResp.data.token || authResp.data.access_token || "";
+    }
+
+    // 2. Validar cuenta destino si el banco tiene api_account_search_url
+    if (bancoDestino.api_account_search_url) {
+      const searchUrl = bancoDestino.api_account_search_url.replace(/\{\{numero_cuenta\}\}/g, cuenta_destino_externa);
+      await axios.get(searchUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 15000
+      });
+    }
+
+    // 3. Determinar URL de envio
+    const apiUrl = bancoDestino.api_url || process.env.API_EXTERNA_URL;
+
+    // 4. Construir body segun template o default
+    let requestBody;
+    if (bancoDestino.api_json_template) {
+      requestBody = JSON.parse(
+        bancoDestino.api_json_template
+          .replace(/\{\{monto\}\}/g, montoTransferencia)
+          .replace(/\{\{cuenta_destino_externa\}\}/g, cuenta_destino_externa)
+          .replace(/\{\{titular_destino\}\}/g, titular_destino || "")
+          .replace(/\{\{referencia_interna\}\}/g, referenciaInterna)
+          .replace(/\{\{moneda\}\}/g, cuentaOrigen.moneda)
+          .replace(/\{\{descripcion\}\}/g, descripcion || "")
+          .replace(/\{\{banco_externo\}\}/g, api_externa_nombre || bancoDestino.nombre)
+      );
+    } else {
+      requestBody = {
         referencia_interna: referenciaInterna,
         cuenta_destino: cuenta_destino_externa,
         titular_destino,
@@ -336,24 +374,31 @@ async function crearTransferenciaExterna(conn, {
         monto: montoTransferencia,
         moneda: cuentaOrigen.moneda,
         descripcion
+      };
+    }
+
+    // 5. Enviar transferencia
+    respuestaExterna = await axios.post(apiUrl, requestBody, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
       },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.API_EXTERNA_TOKEN || ""}`
-        },
-        timeout: 15000
-      }
-    );
+      timeout: 15000
+    });
 
     httpStatusCode = respuestaExterna.status;
-    codigoReferenciaExterna = respuestaExterna.data?.referencia_externa || null;
-    mensajeRespuesta = respuestaExterna.data?.mensaje || "Transferencia enviada";
+    codigoReferenciaExterna = respuestaExterna.data?.referencia_externa ||
+                              respuestaExterna.data?.codigo_confirmacion || null;
+    mensajeRespuesta = respuestaExterna.data?.mensaje ||
+                       respuestaExterna.data?.message ||
+                       "Transferencia enviada";
     estadoEnvio = "CONFIRMADA";
     estadoTransaccion = "COMPLETADA";
   } catch (apiError) {
     httpStatusCode = apiError.response?.status || null;
-    mensajeRespuesta = apiError.response?.data?.message || apiError.message;
+    mensajeRespuesta = apiError.response?.data?.message ||
+                       apiError.response?.data?.mensaje ||
+                       apiError.message;
     estadoEnvio = "FALLIDA";
     estadoTransaccion = "RECHAZADA";
 
