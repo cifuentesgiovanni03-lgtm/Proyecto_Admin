@@ -192,9 +192,22 @@ DELETE /permisos/:id
 
 ## Bancos
 
+Cada banco puede tener su propia configuracion de API externa. El backend soporta:
+- **Token fijo** (`api_token`) — para APIs con token estatico
+- **Login JWT dinamico** (`api_auth_url`, `api_auth_email`, `api_auth_password`) — hace login automaticamente antes de cada transferencia
+- **Validacion de cuenta** (`api_account_search_url`) — verifica que la cuenta destino exista antes de transferir
+- **Template JSON** (`api_json_template`) — personaliza el body de la transferencia con placeholders
+
+Ver `integracion-grupos-externos.md` para una guia detallada.
+
 ### Listar bancos
 ```http
 GET /bancos
+```
+
+### Obtener banco por ID
+```http
+GET /bancos/:id_banco
 ```
 
 ### Crear banco
@@ -203,10 +216,27 @@ POST /bancos
 ```
 ```json
 {
-  "nombre": "Banco Demo",
-  "codigo_banco": "BDEMO",
-  "pais": "Guatemala"
+  "nombre": "Grupo ACH Externo",
+  "codigo_banco": "GRUPO_ACH",
+  "pais": "Guatemala",
+  "api_url": "https://api.grupo.com/transferencias",
+  "api_token": null,
+  "api_json_template": "{\"monto\":{{monto}},\"cuenta\":\"{{cuenta_destino_externa}}\"}",
+  "api_auth_url": "https://api.grupo.com/auth/login",
+  "api_auth_email": "user@example.com",
+  "api_auth_password": "password123",
+  "api_account_search_url": "https://api.grupo.com/cuentas/search/{{numero_cuenta}}"
 }
+```
+
+### Actualizar banco
+```http
+PUT /bancos/:id_banco
+```
+
+### Eliminar banco
+```http
+DELETE /bancos/:id_banco
 ```
 
 ---
@@ -357,6 +387,9 @@ POST /transacciones/transferencia-interna
 ```
 
 ### Transferencia externa (saliente hacia otro banco)
+
+> El backend ejecuta automaticamente: login → validar cuenta → enviar transferencia segun la configuracion del banco destino.
+
 ```http
 POST /transacciones/transferencia-externa
 ```
@@ -366,13 +399,11 @@ POST /transacciones/transferencia-externa
   "monto": 100,
   "api_externa_nombre": "BANCO_GRUPO2",
   "id_banco_destino": 2,
-  "cuenta_destino_externa": "998877",
+  "cuenta_destino_externa": "AH260505118225",
   "titular_destino": "Maria Lopez",
   "descripcion": "Pago a grupo 2"
 }
 ```
-
----
 
 ## API para otros grupos (Transferencia entrante)
 

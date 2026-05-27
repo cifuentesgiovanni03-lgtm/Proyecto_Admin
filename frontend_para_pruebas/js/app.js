@@ -12,6 +12,12 @@ function hide(el) {
   el.classList.add("hidden");
 }
 
+function escHtml(str) {
+  const div = document.createElement("div");
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
+
 function showMessage(el, msg, type = "success") {
   el.textContent = msg;
   el.className = "message " + type;
@@ -331,9 +337,60 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
 async function loadBancos() {
   try {
     const data = await apiFetch("/bancos");
-    renderTable("bancos-list", ["ID Banco", "Nombre", "Codigo banco", "Pais", "Estado"], data);
+    const container = document.getElementById("bancos-list");
+    if (!data || data.length === 0) {
+      container.innerHTML = "<p style='color:#999'>Sin datos</p>";
+      return;
+    }
+    let html = `<table><thead><tr>
+      <th>ID</th><th>Nombre</th><th>Codigo</th><th>Pais</th>
+      <th>Estado</th><th>API URL</th><th>Acciones</th>
+    </tr></thead><tbody>`;
+    data.forEach(b => {
+      html += `<tr>
+        <td>${b.id_banco}</td>
+        <td>${escHtml(b.nombre)}</td>
+        <td>${escHtml(b.codigo_banco)}</td>
+        <td>${escHtml(b.pais)}</td>
+        <td>${escHtml(b.estado)}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${escHtml(b.api_url || "-")}</td>
+        <td><button class="btn-edit" onclick="editarBanco(${b.id_banco})">Editar</button></td>
+      </tr>`;
+    });
+    html += "</tbody></table>";
+    container.innerHTML = html;
   } catch (err) {
     document.getElementById("bancos-list").innerHTML = "<p class='error'>" + err.message + "</p>";
+  }
+}
+
+async function editarBanco(id) {
+  const msgEl = document.getElementById("global-message");
+  try {
+    const banco = await apiFetch("/bancos/" + id);
+    document.getElementById("banco-id").value = banco.id_banco;
+    document.getElementById("banco-nombre").value = banco.nombre;
+    document.getElementById("banco-codigo").value = banco.codigo_banco;
+    document.getElementById("banco-pais").value = banco.pais;
+    document.getElementById("banco-api-url").value = banco.api_url || "";
+    document.getElementById("banco-api-token").value = banco.api_token || "";
+    document.getElementById("banco-api-auth-url").value = banco.api_auth_url || "";
+    document.getElementById("banco-api-auth-email").value = banco.api_auth_email || "";
+    document.getElementById("banco-api-auth-password").value = banco.api_auth_password || "";
+    document.getElementById("banco-api-account-search-url").value = banco.api_account_search_url || "";
+    document.getElementById("banco-api-template").value = banco.api_json_template || "";
+    document.getElementById("banco-submit-btn").textContent = "Actualizar Banco";
+  } catch (err) {
+    showMessage(msgEl, err.message, "error");
+  }
+}
+
+async function guardarBanco(data) {
+  const id = document.getElementById("banco-id").value;
+  if (id) {
+    return await apiFetch("/bancos/" + id, { method: "PUT", body: JSON.stringify(data) });
+  } else {
+    return await apiFetch("/bancos", { method: "POST", body: JSON.stringify(data) });
   }
 }
 
@@ -341,16 +398,23 @@ document.getElementById("form-banco").addEventListener("submit", async (e) => {
   e.preventDefault();
   const msgEl = document.getElementById("global-message");
   try {
-    await apiFetch("/bancos", {
-      method: "POST",
-      body: JSON.stringify({
-        nombre: document.getElementById("banco-nombre").value,
-        codigo_banco: document.getElementById("banco-codigo").value,
-        pais: document.getElementById("banco-pais").value
-      })
-    });
-    showMessage(msgEl, "Banco creado correctamente");
+    const data = {
+      nombre: document.getElementById("banco-nombre").value,
+      codigo_banco: document.getElementById("banco-codigo").value,
+      pais: document.getElementById("banco-pais").value,
+      api_url: document.getElementById("banco-api-url").value || null,
+      api_token: document.getElementById("banco-api-token").value || null,
+      api_auth_url: document.getElementById("banco-api-auth-url").value || null,
+      api_auth_email: document.getElementById("banco-api-auth-email").value || null,
+      api_auth_password: document.getElementById("banco-api-auth-password").value || null,
+      api_account_search_url: document.getElementById("banco-api-account-search-url").value || null,
+      api_json_template: document.getElementById("banco-api-template").value || null
+    };
+    const msg = document.getElementById("banco-id").value ? "Banco actualizado correctamente" : "Banco creado correctamente";
+    await guardarBanco(data);
+    showMessage(msgEl, msg);
     e.target.reset();
+    document.getElementById("banco-submit-btn").textContent = "Crear Banco";
     loadBancos();
   } catch (err) {
     showMessage(msgEl, err.message, "error");
@@ -505,9 +569,42 @@ document.getElementById("form-transferencia").addEventListener("submit", async (
 });
 
 // Transferencia Externa
+async function validarCuentaDestino() {
+  const msgEl = document.getElementById("ext-cuenta-validacion");
+  const cuentaDest = document.getElementById("ext-cuenta-dest").value.trim();
+  const idBanco = Number(document.getElementById("ext-banco").value);
+
+  if (!cuentaDest || !idBanco) {
+    msgEl.innerHTML = "<span style='color:orange'>Selecciona banco destino y escribe el numero de cuenta</span>";
+    return;
+  }
+
+  try {
+    const banco = await apiFetch("/bancos/" + idBanco);
+    if (!banco.api_account_search_url) {
+      msgEl.innerHTML = "<span style='color:#999'>Este banco no requiere validacion previa de cuenta</span>";
+      return;
+    }
+    const searchUrl = banco.api_account_search_url.replace("{{numero_cuenta}}", encodeURIComponent(cuentaDest));
+    const resp = await fetch(searchUrl, {
+      headers: { Authorization: "Bearer " + token }
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      msgEl.innerHTML = "<span style='color:green'>Cuenta validada: " + JSON.stringify(data) + "</span>";
+    } else {
+      const errData = await resp.json().catch(() => ({}));
+      msgEl.innerHTML = "<span style='color:red'>Cuenta NO validada: " + (errData.message || errData.mensaje || resp.statusText) + "</span>";
+    }
+  } catch (err) {
+    msgEl.innerHTML = "<span style='color:red'>Error al validar cuenta: " + err.message + "</span>";
+  }
+}
+
 document.getElementById("form-transferencia-ext").addEventListener("submit", async (e) => {
   e.preventDefault();
   const msgEl = document.getElementById("ext-result");
+  document.getElementById("ext-cuenta-validacion").innerHTML = "";
   try {
     const data = await apiFetch("/transacciones/transferencia-externa", {
       method: "POST",

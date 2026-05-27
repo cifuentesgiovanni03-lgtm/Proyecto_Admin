@@ -184,6 +184,16 @@ mysql> SELECT * FROM tipos_transaccion;
 +---------------------+-----------------------+-----------------------------------------------+
 4 rows in set (0.01 sec)
 
+-- ALTER TABLE para agregar configuracion de API por banco
+ALTER TABLE bancos
+  ADD COLUMN api_url VARCHAR(500) NULL AFTER pais,
+  ADD COLUMN api_token VARCHAR(500) NULL AFTER api_url,
+  ADD COLUMN api_json_template TEXT NULL AFTER api_token,
+  ADD COLUMN api_auth_url VARCHAR(500) NULL AFTER api_json_template,
+  ADD COLUMN api_auth_email VARCHAR(200) NULL AFTER api_auth_url,
+  ADD COLUMN api_auth_password VARCHAR(500) NULL AFTER api_auth_email,
+  ADD COLUMN api_account_search_url VARCHAR(500) NULL AFTER api_auth_password;
+
 mysql> exit
 Bye
 azureuser@Mibasededatos:/tmp$ mongosh
