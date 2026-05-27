@@ -9,6 +9,8 @@ import Bancos from './pages/Bancos';
 import Permisos from './pages/Permisos';
 import Roles from './pages/Roles';
 import Usuarios from './pages/Usuarios';
+import CuentasPublicas from './pages/CuentasPublicas';
+import TransferenciaEntrante from './pages/TransferenciaEntrante';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -30,6 +32,8 @@ export default function App() {
         <Route path="/permisos" element={<PrivateRoute><Permisos /></PrivateRoute>} />
         <Route path="/roles" element={<PrivateRoute><Roles /></PrivateRoute>} />
         <Route path="/usuarios" element={<PrivateRoute><Usuarios /></PrivateRoute>} />
+        <Route path="/cuentas-publicas" element={<PrivateRoute><CuentasPublicas /></PrivateRoute>} />
+        <Route path="/transferencia-entrante" element={<PrivateRoute><TransferenciaEntrante /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   );

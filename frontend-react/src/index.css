@@ -48,3 +48,66 @@ body {
   color: var(--text-primary);
   transition: background 0.2s, color 0.2s;
 }
+
+/* Corrección global para pantallas nuevas en tema oscuro */
+body[data-tema='oscuro'] .app-layout,
+body[data-tema='oscuro'] .layout,
+body[data-tema='oscuro'] .main-content,
+body[data-tema='oscuro'] .page-content {
+  background: #0f1117 !important;
+  color: #f9fafb !important;
+}
+
+body[data-tema='oscuro'] h1,
+body[data-tema='oscuro'] h2,
+body[data-tema='oscuro'] h3,
+body[data-tema='oscuro'] .page-header h1,
+body[data-tema='oscuro'] .dashboard-header h1 {
+  color: #f9fafb !important;
+}
+
+body[data-tema='oscuro'] p,
+body[data-tema='oscuro'] .page-header p,
+body[data-tema='oscuro'] .dashboard-header p,
+body[data-tema='oscuro'] .text-muted {
+  color: #9ca3af !important;
+}
+
+body[data-tema='oscuro'] .form-card,
+body[data-tema='oscuro'] .table-card,
+body[data-tema='oscuro'] .stat-card,
+body[data-tema='oscuro'] .action-card,
+body[data-tema='oscuro'] .summary-card,
+body[data-tema='oscuro'] .modal-card {
+  background: #171b25 !important;
+  border-color: #2a3040 !important;
+  color: #f9fafb !important;
+}
+
+body[data-tema='oscuro'] table,
+body[data-tema='oscuro'] th,
+body[data-tema='oscuro'] td {
+  color: #f9fafb !important;
+  border-color: #2a3040 !important;
+}
+
+body[data-tema='oscuro'] th {
+  color: #9ca3af !important;
+}
+
+body[data-tema='oscuro'] input,
+body[data-tema='oscuro'] select,
+body[data-tema='oscuro'] textarea {
+  background: #10141f !important;
+  border-color: #374151 !important;
+  color: #f9fafb !important;
+}
+
+body[data-tema='oscuro'] input::placeholder,
+body[data-tema='oscuro'] textarea::placeholder {
+  color: #6b7280 !important;
+}
+
+body[data-tema='oscuro'] .table-card tbody tr:hover {
+  background: #1f2937 !important;
+}

@@ -8,33 +8,106 @@ export default function Dashboard() {
     clientes: '-',
     cuentas: '-',
     transacciones: '-',
+    bancos: '-',
+    roles: '-',
+    usuarios: '-',
   });
+
+  const getCount = (data, key) => {
+    if (Array.isArray(data)) return data.length;
+    if (Array.isArray(data?.[key])) return data[key].length;
+    if (typeof data?.total === 'number') return data.total;
+    if (typeof data?.total_cuentas === 'number') return data.total_cuentas;
+    return '-';
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
-      try {
-        const [clientes, cuentas, transacciones] = await Promise.all([
-          api.get('/clientes'),
-          api.get('/cuentas'),
-          api.get('/transacciones'),
-        ]);
-        setStats({
-          clientes: clientes.data?.length ?? clientes.data?.total ?? '-',
-          cuentas: cuentas.data?.length ?? cuentas.data?.total ?? '-',
-          transacciones: transacciones.data?.length ?? transacciones.data?.total ?? '-',
-        });
-      } catch {
-        // Si falla, dejamos los guiones
-      }
+      const results = await Promise.allSettled([
+        api.get('/clientes'),
+        api.get('/cuentas'),
+        api.get('/transacciones'),
+        api.get('/bancos'),
+        api.get('/roles'),
+        api.get('/usuarios'),
+      ]);
+
+      const [
+        clientes,
+        cuentas,
+        transacciones,
+        bancos,
+        roles,
+        usuarios,
+      ] = results;
+
+      setStats({
+        clientes: clientes.status === 'fulfilled' ? getCount(clientes.value.data, 'clientes') : '-',
+        cuentas: cuentas.status === 'fulfilled' ? getCount(cuentas.value.data, 'cuentas') : '-',
+        transacciones: transacciones.status === 'fulfilled' ? getCount(transacciones.value.data, 'transacciones') : '-',
+        bancos: bancos.status === 'fulfilled' ? getCount(bancos.value.data, 'bancos') : '-',
+        roles: roles.status === 'fulfilled' ? getCount(roles.value.data, 'roles') : '-',
+        usuarios: usuarios.status === 'fulfilled' ? getCount(usuarios.value.data, 'usuarios') : '-',
+      });
     };
+
     fetchStats();
   }, []);
 
-const usuario = (() => { try { return JSON.parse(localStorage.getItem('usuario') || '{}'); } catch { return {}; } })();
+  const usuario = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('usuario') || '{}');
+    } catch {
+      return {};
+    }
+  })();
+
+  const decodeToken = () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return {};
+
+      const payload = token.split('.')[1];
+      return JSON.parse(atob(payload));
+    } catch {
+      return {};
+    }
+  };
+
+  const tokenData = decodeToken();
+
+  const rol =
+    usuario.rol ||
+    usuario.nombre_rol ||
+    tokenData.rol ||
+    tokenData.nombre_rol ||
+    (tokenData.id_rol === 1 ? 'ADMINISTRADOR' : tokenData.id_rol === 2 ? 'OPERADOR' : tokenData.id_rol === 3 ? 'CAJERO' : '');
+
+  const modulos = [
+    { path: '/clientes', label: 'Clientes', icon: '👤' },
+    { path: '/cuentas', label: 'Cuentas', icon: '💳' },
+    { path: '/cuentas-publicas', label: 'Cuentas públicas', icon: '🌐' },
+    { path: '/transacciones', label: 'Transacciones', icon: '🔄' },
+    { path: '/reportes', label: 'Reportes', icon: '📋' },
+    { path: '/bancos', label: 'Bancos', icon: '🏦' },
+    { path: '/permisos', label: 'Permisos', icon: '🔐' },
+    { path: '/roles', label: 'Roles', icon: '🛡️' },
+    { path: '/usuarios', label: 'Usuarios', icon: '👥' },
+  ];
+
+  const adminOnly = ['/usuarios', '/roles', '/permisos'];
+
+  const modulosVisibles = modulos.filter((item) => {
+    if (rol === 'ADMINISTRADOR') return true;
+    if (adminOnly.includes(item.path)) return false;
+    if (rol === 'CAJERO' && item.path === '/bancos') return false;
+    return true;
+  });
 
   return (
     <div className="layout">
       <Navbar />
+
       <main className="main-content">
         <div className="dashboard-header">
           <h1>Bienvenido, {usuario.nombre_completo || 'Usuario'} 👋</h1>
@@ -49,6 +122,7 @@ const usuario = (() => { try { return JSON.parse(localStorage.getItem('usuario')
               <span className="stat-label">Clientes registrados</span>
             </div>
           </div>
+
           <div className="stat-card">
             <div className="stat-icon">💳</div>
             <div className="stat-info">
@@ -56,6 +130,7 @@ const usuario = (() => { try { return JSON.parse(localStorage.getItem('usuario')
               <span className="stat-label">Cuentas activas</span>
             </div>
           </div>
+
           <div className="stat-card">
             <div className="stat-icon">🔄</div>
             <div className="stat-info">
@@ -63,28 +138,43 @@ const usuario = (() => { try { return JSON.parse(localStorage.getItem('usuario')
               <span className="stat-label">Transacciones</span>
             </div>
           </div>
+
+          <div className="stat-card">
+            <div className="stat-icon">🏦</div>
+            <div className="stat-info">
+              <span className="stat-value">{stats.bancos}</span>
+              <span className="stat-label">Bancos registrados</span>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon">🛡️</div>
+            <div className="stat-info">
+              <span className="stat-value">{stats.roles}</span>
+              <span className="stat-label">Roles del sistema</span>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon">👥</div>
+            <div className="stat-info">
+              <span className="stat-value">{stats.usuarios}</span>
+              <span className="stat-label">Usuarios registrados</span>
+            </div>
+          </div>
         </div>
 
         <div className="quick-actions">
-          <h2>Acciones rápidas</h2>
+          <h2>Módulos del sistema</h2>
+
           <div className="actions-grid">
-            <a href="/clientes" className="action-card">
-              <span>👤</span>
-              <span>Nuevo cliente</span>
+          {modulosVisibles.map((item) => (
+            <a key={item.path} href={item.path} className="action-card">
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
             </a>
-            <a href="/cuentas" className="action-card">
-              <span>💳</span>
-              <span>Nueva cuenta</span>
-            </a>
-            <a href="/transacciones" className="action-card">
-              <span>💰</span>
-              <span>Depósito</span>
-            </a>
-            <a href="/transacciones" className="action-card">
-              <span>🔄</span>
-              <span>Transferencia</span>
-            </a>
-          </div>
+          ))}
+        </div>
         </div>
       </main>
     </div>

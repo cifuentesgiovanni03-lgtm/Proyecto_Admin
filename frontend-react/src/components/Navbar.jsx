@@ -6,7 +6,9 @@ const menu = [
   { path: '/dashboard', label: 'Dashboard', icon: '📊' },
   { path: '/clientes', label: 'Clientes', icon: '👤' },
   { path: '/cuentas', label: 'Cuentas', icon: '💳' },
+  { path: '/cuentas-publicas', label: 'Cuentas públicas', icon: '🌐' },
   { path: '/transacciones', label: 'Transacciones', icon: '🔄' },
+  //{ path: '/transferencia-entrante', label: 'Transferencia entrante', icon: '📥' },
   { path: '/reportes', label: 'Reportes', icon: '📋' },
   { path: '/bancos', label: 'Bancos', icon: '🏦' },
   { path: '/permisos', label: 'Permisos', icon: '🔐' },
@@ -17,13 +19,51 @@ const menu = [
 export default function Navbar() {
   const navigate = useNavigate();
   const { dark, toggle } = useTheme();
-  const usuario = (() => { try { return JSON.parse(localStorage.getItem('usuario') || '{}'); } catch { return {}; } })();
+  const decodeToken = () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return {};
+
+      const payload = token.split('.')[1];
+      return JSON.parse(atob(payload));
+    } catch {
+      return {};
+    }
+  };
+
+  const usuario = (() => {
+    try {
+      const user = localStorage.getItem('usuario');
+      if (!user || user === 'undefined') return {};
+      return JSON.parse(user);
+    } catch {
+      return {};
+    }
+  })();
+
+  const tokenData = decodeToken();
+
+  const rol =
+    usuario.rol ||
+    usuario.nombre_rol ||
+    tokenData.rol ||
+    tokenData.nombre_rol ||
+    (tokenData.id_rol === 1 ? 'ADMINISTRADOR' : tokenData.id_rol === 2 ? 'OPERADOR' : tokenData.id_rol === 3 ? 'CAJERO' : '');
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('usuario');
     navigate('/login');
   };
+
+  const adminOnly = ['/usuarios', '/roles', '/permisos'];
+
+  const visibleMenu = menu.filter((item) => {
+    if (rol === 'ADMINISTRADOR') return true;
+    if (adminOnly.includes(item.path)) return false;
+    if (rol === 'CAJERO' && item.path === '/bancos') return false;
+    return true;
+  });
 
   return (
     <aside className="sidebar">
@@ -33,7 +73,17 @@ export default function Navbar() {
       </div>
 
       <nav className="sidebar-nav">
-        {menu.map((item) => (
+        {visibleMenu.slice(0, 4).map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')}
+          >
+            <span className="sidebar-icon">{item.icon}</span>
+            {item.label}
+          </NavLink>
+        ))}
+        {visibleMenu.slice(4).map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
