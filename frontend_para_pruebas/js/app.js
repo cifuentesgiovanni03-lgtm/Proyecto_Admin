@@ -511,6 +511,44 @@ document.getElementById("form-movimientos").addEventListener("submit", async (e)
   }
 });
 
+async function loadTransacciones() {
+  try {
+    const data = await apiFetch("/transacciones");
+    const container = document.getElementById("transacciones-list");
+    if (!data || data.length === 0) {
+      container.innerHTML = "<p style='color:#999'>Sin transacciones</p>";
+      return;
+    }
+    let html = `<table style="font-size:13px"><thead><tr>
+      <th>ID</th><th>Tipo</th><th>Cta Origen</th><th>Cta Destino</th><th>Monto</th><th>Estado</th><th>Fecha</th><th>Descripcion</th><th>Ref Externa</th>
+    </tr></thead><tbody>`;
+    data.forEach(t => {
+      const estadoCls = t.estado === "COMPLETADA" ? "badge-exito" : t.estado === "RECHAZADA" || t.estado === "FALLIDA" ? "badge-error" : "badge-proceso";
+      const tipoCls = t.tipo_transaccion === "DEPOSITO" || t.tipo_transaccion === "TRANSFERENCIA_EXTERNA_ENTRANTE" ? "tipo-ingreso" : "tipo-egreso";
+      const monto = Number(t.monto).toLocaleString("es-GT", { minimumFractionDigits: 2 });
+      const fecha = t.fecha_transaccion ? t.fecha_transaccion.substring(0, 19).replace("T", " ") : "-";
+      const ctaOrigen = t.numero_cuenta_origen || (t.cuenta_origen_externa ? "EXT:" + t.cuenta_origen_externa : "-");
+      const ctaDestino = t.numero_cuenta_destino || t.cuenta_destino_externa || "-";
+      const refExt = t.codigo_referencia_externa || t.ref_entrante || "-";
+      html += `<tr>
+        <td>${t.id_transaccion}</td>
+        <td><span class="tipo-badge ${tipoCls}">${t.tipo_transaccion?.replace(/_/g, " ") || "-"}</span></td>
+        <td style="font-family:monospace;font-size:12px">${escHtml(ctaOrigen)}</td>
+        <td style="font-family:monospace;font-size:12px">${escHtml(ctaDestino)}</td>
+        <td style="text-align:right;font-weight:600">${monto}</td>
+        <td><span class="estado-badge ${estadoCls}">${t.estado || "-"}</span></td>
+        <td style="font-size:12px;white-space:nowrap">${fecha}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${escHtml(t.descripcion || "-")}</td>
+        <td style="font-family:monospace;font-size:11px">${escHtml(refExt)}</td>
+      </tr>`;
+    });
+    html += "</tbody></table>";
+    container.innerHTML = html;
+  } catch (err) {
+    document.getElementById("transacciones-list").innerHTML = "<p class='error'>" + err.message + "</p>";
+  }
+}
+
 // ===== TRANSACCIONES =====
 
 // Deposito
