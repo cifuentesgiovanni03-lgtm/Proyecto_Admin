@@ -345,7 +345,7 @@ async function validarCuentaExterna(req, res) {
         timeout: 15000
       });
       const data = authResp.data?.data || authResp.data;
-      token = data.token || data.access_token || "";
+      token = data.token || data.access_token || data.accessToken || "";
     }
 
     // Buscar cuenta
@@ -365,8 +365,8 @@ async function validarCuentaExterna(req, res) {
       mensaje: "Cuenta encontrada correctamente",
       id_cuenta_destino: data.id || data.id_cuenta || null,
       cuenta: {
-        numero: data.numero_cuenta || cuenta_externa,
-        titular: data.titular || data.cliente?.nombres + " " + data.cliente?.apellidos || null,
+        numero: data.numero_cuenta || data.numeroCuenta || cuenta_externa,
+        titular: data.titular || data.nombreTitular || data.cliente?.nombres + " " + data.cliente?.apellidos || null,
         moneda: data.moneda || null
       }
     });

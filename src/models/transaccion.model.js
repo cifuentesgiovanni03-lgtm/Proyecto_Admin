@@ -339,7 +339,7 @@ async function crearTransferenciaExterna(conn, {
         timeout: 15000
       });
       const data = authResp.data?.data || authResp.data;
-      token = data.token || data.access_token || authResp.data.token || authResp.data.access_token || "";
+      token = data.token || data.access_token || data.accessToken || authResp.data.token || authResp.data.access_token || authResp.data.accessToken || "";
     }
 
     // 2. Validar cuenta destino si el banco tiene api_account_search_url
