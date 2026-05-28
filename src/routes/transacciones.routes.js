@@ -9,38 +9,36 @@ const {
   crearTransferenciaEntrante,
   validarCuentaExterna
 } = require("../controllers/transacciones.controller");
-const {
-  verificarToken,
-  verificarRol
-} = require("../middlewares/auth.middleware");
+const { verificarToken } = require("../middlewares/auth.middleware");
+const { verificarPermiso } = require("../middlewares/permiso.middleware");
 
-router.get("/", verificarToken, listarTransacciones);
+router.get("/", verificarToken, verificarPermiso("VER_TRANSACCIONES"), listarTransacciones);
 
 router.post(
   "/deposito",
   verificarToken,
-  verificarRol("ADMINISTRADOR", "OPERADOR", "CAJERO"),
+  verificarPermiso("REALIZAR_DEPOSITO"),
   crearDeposito
 );
 
 router.post(
   "/retiro",
   verificarToken,
-  verificarRol("ADMINISTRADOR", "OPERADOR", "CAJERO"),
+  verificarPermiso("REALIZAR_RETIRO"),
   crearRetiro
 );
 
 router.post(
   "/transferencia-interna",
   verificarToken,
-  verificarRol("ADMINISTRADOR", "OPERADOR"),
+  verificarPermiso("REALIZAR_TRANSFERENCIA_INTERNA"),
   crearTransferenciaInterna
 );
 
 router.post(
   "/transferencia-externa",
   verificarToken,
-  verificarRol("ADMINISTRADOR", "OPERADOR"),
+  verificarPermiso("REALIZAR_TRANSFERENCIA_EXTERNA"),
   crearTransferenciaExterna
 );
 
@@ -52,6 +50,7 @@ router.post(
 router.post(
   "/validar-cuenta-externa",
   verificarToken,
+  verificarPermiso("REALIZAR_TRANSFERENCIA_EXTERNA"),
   validarCuentaExterna
 );
 

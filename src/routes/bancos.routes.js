@@ -7,15 +7,13 @@ const {
   actualizarBanco,
   eliminarBanco
 } = require("../controllers/bancos.controller");
-const {
-  verificarToken,
-  verificarRol
-} = require("../middlewares/auth.middleware");
+const { verificarToken } = require("../middlewares/auth.middleware");
+const { verificarPermiso } = require("../middlewares/permiso.middleware");
 
-router.get("/", verificarToken, listarBancos);
-router.get("/:id_banco", verificarToken, obtenerBanco);
-router.post("/", verificarToken, verificarRol("ADMINISTRADOR", "OPERADOR"), crearBanco);
-router.put("/:id_banco", verificarToken, verificarRol("ADMINISTRADOR", "OPERADOR"), actualizarBanco);
-router.delete("/:id_banco", verificarToken, verificarRol("ADMINISTRADOR"), eliminarBanco);
+router.get("/", verificarToken, verificarPermiso("VER_BANCOS"), listarBancos);
+router.get("/:id_banco", verificarToken, verificarPermiso("VER_BANCOS"), obtenerBanco);
+router.post("/", verificarToken, verificarPermiso("GESTIONAR_BANCOS"), crearBanco);
+router.put("/:id_banco", verificarToken, verificarPermiso("GESTIONAR_BANCOS"), actualizarBanco);
+router.delete("/:id_banco", verificarToken, verificarPermiso("ELIMINAR_BANCOS"), eliminarBanco);
 
 module.exports = router;

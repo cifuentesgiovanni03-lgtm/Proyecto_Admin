@@ -8,16 +8,14 @@ const {
   cambiarPassword,
   eliminarUsuario
 } = require("../controllers/usuarios.controller");
-const {
-  verificarToken,
-  verificarRol
-} = require("../middlewares/auth.middleware");
+const { verificarToken } = require("../middlewares/auth.middleware");
+const { verificarPermiso } = require("../middlewares/permiso.middleware");
 
-router.get("/", verificarToken, verificarRol("ADMINISTRADOR"), listarUsuarios);
-router.get("/:id_usuario", verificarToken, verificarRol("ADMINISTRADOR"), obtenerUsuario);
-router.post("/", verificarToken, verificarRol("ADMINISTRADOR"), crearUsuario);
-router.put("/:id_usuario", verificarToken, verificarRol("ADMINISTRADOR"), actualizarUsuario);
-router.put("/:id_usuario/password", verificarToken, verificarRol("ADMINISTRADOR"), cambiarPassword);
-router.delete("/:id_usuario", verificarToken, verificarRol("ADMINISTRADOR"), eliminarUsuario);
+router.get("/", verificarToken, verificarPermiso("GESTIONAR_USUARIOS"), listarUsuarios);
+router.get("/:id_usuario", verificarToken, verificarPermiso("GESTIONAR_USUARIOS"), obtenerUsuario);
+router.post("/", verificarToken, verificarPermiso("GESTIONAR_USUARIOS"), crearUsuario);
+router.put("/:id_usuario", verificarToken, verificarPermiso("GESTIONAR_USUARIOS"), actualizarUsuario);
+router.put("/:id_usuario/password", verificarToken, verificarPermiso("GESTIONAR_USUARIOS"), cambiarPassword);
+router.delete("/:id_usuario", verificarToken, verificarPermiso("GESTIONAR_USUARIOS"), eliminarUsuario);
 
 module.exports = router;

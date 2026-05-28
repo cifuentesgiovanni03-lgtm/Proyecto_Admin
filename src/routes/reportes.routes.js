@@ -5,29 +5,27 @@ const {
   reporteClientes,
   resumenSaldos
 } = require("../controllers/reportes.controller");
-const {
-  verificarToken,
-  verificarRol
-} = require("../middlewares/auth.middleware");
+const { verificarToken } = require("../middlewares/auth.middleware");
+const { verificarPermiso } = require("../middlewares/permiso.middleware");
 
 router.get(
   "/transacciones",
   verificarToken,
-  verificarRol("ADMINISTRADOR", "OPERADOR"),
+  verificarPermiso("VER_REPORTES"),
   reporteTransacciones
 );
 
 router.get(
   "/clientes",
   verificarToken,
-  verificarRol("ADMINISTRADOR", "OPERADOR"),
+  verificarPermiso("VER_REPORTES"),
   reporteClientes
 );
 
 router.get(
   "/saldos",
   verificarToken,
-  verificarRol("ADMINISTRADOR", "OPERADOR"),
+  verificarPermiso("VER_REPORTES"),
   resumenSaldos
 );
 

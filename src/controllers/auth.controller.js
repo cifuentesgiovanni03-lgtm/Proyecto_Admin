@@ -22,6 +22,7 @@ async function login(req, res) {
       {
         id_usuario: usuario.id_usuario,
         username: usuario.username,
+        id_rol: usuario.id_rol,
         rol: usuario.rol
       },
       process.env.JWT_SECRET,

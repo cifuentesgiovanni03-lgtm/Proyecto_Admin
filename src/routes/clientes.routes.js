@@ -7,15 +7,13 @@ const {
   actualizarCliente,
   eliminarCliente
 } = require("../controllers/clientes.controller");
-const {
-  verificarToken,
-  verificarRol
-} = require("../middlewares/auth.middleware");
+const { verificarToken } = require("../middlewares/auth.middleware");
+const { verificarPermiso } = require("../middlewares/permiso.middleware");
 
-router.get("/", verificarToken, listarClientes);
-router.get("/:id_cliente", verificarToken, obtenerCliente);
-router.post("/", verificarToken, verificarRol("ADMINISTRADOR", "OPERADOR"), crearCliente);
-router.put("/:id_cliente", verificarToken, verificarRol("ADMINISTRADOR", "OPERADOR"), actualizarCliente);
-router.delete("/:id_cliente", verificarToken, verificarRol("ADMINISTRADOR"), eliminarCliente);
+router.get("/", verificarToken, verificarPermiso("VER_CLIENTES"), listarClientes);
+router.get("/:id_cliente", verificarToken, verificarPermiso("VER_CLIENTES"), obtenerCliente);
+router.post("/", verificarToken, verificarPermiso("GESTIONAR_CLIENTES"), crearCliente);
+router.put("/:id_cliente", verificarToken, verificarPermiso("GESTIONAR_CLIENTES"), actualizarCliente);
+router.delete("/:id_cliente", verificarToken, verificarPermiso("ELIMINAR_CLIENTES"), eliminarCliente);
 
 module.exports = router;
