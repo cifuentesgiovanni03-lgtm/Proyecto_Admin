@@ -580,26 +580,20 @@ async function validarCuentaDestino() {
   }
 
   try {
-    const banco = await apiFetch("/bancos/" + idBanco);
-    if (!banco.api_account_search_url) {
-      msgEl.innerHTML = "<span style='color:#999'>Este banco no requiere validacion previa de cuenta</span>";
-      return;
-    }
-    const searchUrl = banco.api_account_search_url.replace("{{numero_cuenta}}", encodeURIComponent(cuentaDest));
-    const resp = await fetch(searchUrl, {
-      headers: { Authorization: "Bearer " + token }
+    const resp = await apiFetch("/transacciones/validar-cuenta-externa", {
+      method: "POST",
+      body: JSON.stringify({
+        id_banco_destino: idBanco,
+        cuenta_externa: cuentaDest
+      })
     });
-    if (resp.ok) {
-      const data = await resp.json();
-      const innerData = data.data || data;
-      const idDestino = innerData.id || innerData.id_cuenta;
-      if (idDestino) {
-        document.getElementById("ext-id-cuenta-dest").value = idDestino;
+    if (resp.valida) {
+      if (resp.id_cuenta_destino) {
+        document.getElementById("ext-id-cuenta-dest").value = resp.id_cuenta_destino;
       }
-      msgEl.innerHTML = "<span style='color:green'>Cuenta validada. ID destino: " + (idDestino || "?") + "</span>";
+      msgEl.innerHTML = "<span style='color:green'>" + (resp.mensaje || "Cuenta validada") + ". ID destino: " + (resp.id_cuenta_destino || "N/A") + "</span>";
     } else {
-      const errData = await resp.json().catch(() => ({}));
-      msgEl.innerHTML = "<span style='color:red'>Cuenta NO validada: " + (errData.message || errData.mensaje || resp.statusText) + "</span>";
+      msgEl.innerHTML = "<span style='color:red'>" + (resp.mensaje || "Cuenta NO validada") + "</span>";
     }
   } catch (err) {
     msgEl.innerHTML = "<span style='color:red'>Error al validar cuenta: " + err.message + "</span>";

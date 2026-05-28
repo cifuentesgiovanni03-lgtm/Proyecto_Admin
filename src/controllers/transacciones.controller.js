@@ -1,6 +1,7 @@
 const axios = require("axios");
 const pool = require("../config/mysql");
 const transaccionModel = require("../models/transaccion.model");
+const bancoModel = require("../models/banco.model");
 const { registrarAuditoria, registrarLog } = require("../services/auditoria.service");
 
 async function listarTransacciones(req, res) {
@@ -319,11 +320,70 @@ async function crearTransferenciaExterna(req, res) {
   }
 }
 
+async function validarCuentaExterna(req, res) {
+  try {
+    const { id_banco_destino, cuenta_externa } = req.body;
+
+    if (!id_banco_destino || !cuenta_externa) {
+      return res.status(400).json({ message: "id_banco_destino y cuenta_externa son obligatorios" });
+    }
+
+    const banco = await bancoModel.findById(id_banco_destino);
+    if (!banco) {
+      return res.status(404).json({ message: "Banco no encontrado" });
+    }
+
+    let token = banco.api_token || "";
+
+    // Login si aplica
+    if (banco.api_auth_url) {
+      const authResp = await axios.post(banco.api_auth_url, {
+        email: banco.api_auth_email,
+        password: banco.api_auth_password
+      }, {
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        timeout: 15000
+      });
+      const data = authResp.data?.data || authResp.data;
+      token = data.token || data.access_token || "";
+    }
+
+    // Buscar cuenta
+    if (!banco.api_account_search_url) {
+      return res.json({ valida: true, mensaje: "Este banco no requiere validacion de cuenta" });
+    }
+
+    const searchUrl = banco.api_account_search_url.replace(/\{\{numero_cuenta\}\}/g, cuenta_externa);
+    const searchResp = await axios.get(searchUrl, {
+      headers: { Authorization: `Bearer ${token}`, "Accept": "application/json" },
+      timeout: 15000
+    });
+
+    const data = searchResp.data?.data || searchResp.data;
+    res.json({
+      valida: true,
+      mensaje: "Cuenta encontrada correctamente",
+      id_cuenta_destino: data.id || data.id_cuenta || null,
+      cuenta: {
+        numero: data.numero_cuenta || cuenta_externa,
+        titular: data.titular || data.cliente?.nombres + " " + data.cliente?.apellidos || null,
+        moneda: data.moneda || null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      valida: false,
+      mensaje: error.response?.data?.message || error.response?.data?.mensaje || error.message
+    });
+  }
+}
+
 module.exports = {
   listarTransacciones,
   crearDeposito,
   crearRetiro,
   crearTransferenciaInterna,
   crearTransferenciaExterna,
-  crearTransferenciaEntrante
+  crearTransferenciaEntrante,
+  validarCuentaExterna
 };

@@ -6,7 +6,8 @@ const {
   crearRetiro,
   crearTransferenciaInterna,
   crearTransferenciaExterna,
-  crearTransferenciaEntrante
+  crearTransferenciaEntrante,
+  validarCuentaExterna
 } = require("../controllers/transacciones.controller");
 const {
   verificarToken,
@@ -46,6 +47,12 @@ router.post(
 router.post(
   "/transferencia-entrante",
   crearTransferenciaEntrante
+);
+
+router.post(
+  "/validar-cuenta-externa",
+  verificarToken,
+  validarCuentaExterna
 );
 
 module.exports = router;
