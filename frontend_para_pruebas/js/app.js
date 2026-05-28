@@ -1,4 +1,4 @@
-const API = "http://localhost:3000/api";
+const API = "https://proyectoadmin-production.up.railway.app/api";
 
 let token = localStorage.getItem("token");
 

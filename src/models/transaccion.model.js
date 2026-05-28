@@ -337,7 +337,8 @@ async function crearTransferenciaExterna(conn, {
         headers: { "Content-Type": "application/json" },
         timeout: 15000
       });
-      token = authResp.data.token || authResp.data.access_token || "";
+      const data = authResp.data?.data || authResp.data;
+      token = data.token || data.access_token || authResp.data.token || authResp.data.access_token || "";
     }
 
     // 2. Validar cuenta destino si el banco tiene api_account_search_url
@@ -387,9 +388,14 @@ async function crearTransferenciaExterna(conn, {
     });
 
     httpStatusCode = respuestaExterna.status;
-    codigoReferenciaExterna = respuestaExterna.data?.referencia_externa ||
-                              respuestaExterna.data?.codigo_confirmacion || null;
-    mensajeRespuesta = respuestaExterna.data?.mensaje ||
+    const respData = respuestaExterna.data?.data || respuestaExterna.data;
+    codigoReferenciaExterna = respData.codigo_confirmacion ||
+                              respData.referencia_externa ||
+                              respuestaExterna.data?.codigo_confirmacion ||
+                              respuestaExterna.data?.referencia_externa || null;
+    mensajeRespuesta = respData.mensaje ||
+                       respData.message ||
+                       respuestaExterna.data?.mensaje ||
                        respuestaExterna.data?.message ||
                        "Transferencia enviada";
     estadoEnvio = "CONFIRMADA";
