@@ -225,7 +225,10 @@ POST /bancos
   "api_auth_url": "https://api.grupo.com/auth/login",
   "api_auth_email": "user@example.com",
   "api_auth_password": "password123",
-  "api_account_search_url": "https://api.grupo.com/cuentas/search/{{numero_cuenta}}"
+  "api_account_search_url": "https://api.grupo.com/cuentas/search/{{numero_cuenta}}",
+  "api_auth_header_name": "Authorization",
+  "api_auth_header_prefix": "Bearer ",
+  "moneda_externa": "Q"
 }
 ```
 

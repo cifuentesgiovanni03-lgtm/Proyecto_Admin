@@ -24,7 +24,10 @@ ALTER TABLE bancos
   ADD COLUMN api_auth_url VARCHAR(500) NULL AFTER api_json_template,
   ADD COLUMN api_auth_email VARCHAR(200) NULL AFTER api_auth_url,
   ADD COLUMN api_auth_password VARCHAR(500) NULL AFTER api_auth_email,
-  ADD COLUMN api_account_search_url VARCHAR(500) NULL AFTER api_auth_password;
+  ADD COLUMN api_account_search_url VARCHAR(500) NULL AFTER api_auth_password,
+  ADD COLUMN api_auth_header_name VARCHAR(50) NULL DEFAULT 'Authorization' AFTER api_account_search_url,
+  ADD COLUMN api_auth_header_prefix VARCHAR(50) NULL DEFAULT 'Bearer ' AFTER api_auth_header_name,
+  ADD COLUMN moneda_externa VARCHAR(10) NULL AFTER api_auth_header_prefix;
 ```
 
 ### Ejemplo: Grupo ACH con login JWT y validacion de cuenta
@@ -122,6 +125,32 @@ Elimina un banco.
 
 ---
 
+### Campos nuevos para auth header configurable
+
+| Campo | Default | Descripcion |
+|-------|---------|-------------|
+| `api_auth_header_name` | `"Authorization"` | Nombre del header de autenticacion (ej: `"X-API-Key"`) |
+| `api_auth_header_prefix` | `"Bearer "` | Prefijo antes del token (ej: `""` para X-API-Key) |
+
+### Ejemplo: Exclousit Banco (X-API-Key, sin login JWT)
+
+```json
+POST /api/bancos
+{
+  "nombre": "Exclousit Banco",
+  "codigo_banco": "EXCLOUSIT",
+  "api_url": "http://exclousitbank-adminti.up.railway.app/api/v1/transferencia/recibir",
+  "api_token": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+  "api_json_template": "{\"referencia\":\"{{referencia_interna}}\",\"numero_cuenta_destino\":\"{{cuenta_destino_externa}}\",\"monto\":{{monto}},\"descripcion\":\"{{descripcion}}\"}",
+  "api_account_search_url": "http://exclousitbank-adminti.up.railway.app/api/v1/cuenta/verificar?numero={{numero_cuenta}}",
+  "api_auth_header_name": "X-API-Key",
+  "api_auth_header_prefix": "",
+  "moneda_externa": "Q"
+}
+```
+
+> **Nota**: `api_auth_header_prefix` se deja vacio porque `X-API-Key` no usa "Bearer ".
+
 ## Flujo completo (backend - transaccion.model.js)
 
 ```
@@ -138,14 +167,14 @@ crearTransferenciaExterna()
   │      └─ POST login con email/password → obtiene token JWT
   │
   ├─ 8. SI banco tiene api_account_search_url:
-  │      └─ GET {{numero_cuenta}} con Bearer token → valida cuenta
+  │      └─ GET {{numero_cuenta}} con header configurable → valida cuenta
   │
   ├─ 9. SI banco tiene api_json_template:
   │      └─ Reemplazar placeholders → body final
   │     SINO:
   │      └─ Usar body por defecto
   │
-  ├─ 10. POST a api_url con body y token
+  ├─ 10. POST a api_url con body y header configurable
   │
   ├─ 11. SI exito: estado = COMPLETADA / CONFIRMADA
   │      SI falla: revertir saldo y eliminar movimiento

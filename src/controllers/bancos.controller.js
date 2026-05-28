@@ -26,6 +26,7 @@ async function crearBanco(req, res) {
   try {
     const { nombre, codigo_banco, pais, api_url, api_token, api_json_template,
             api_auth_url, api_auth_email, api_auth_password, api_account_search_url,
+            api_auth_header_name, api_auth_header_prefix,
             moneda_externa } = req.body;
 
     if (!nombre || !codigo_banco) {
@@ -36,7 +37,8 @@ async function crearBanco(req, res) {
 
     const id_banco = await bancoModel.create({
       nombre, codigo_banco, pais, api_url, api_token, api_json_template,
-      api_auth_url, api_auth_email, api_auth_password, api_account_search_url, moneda_externa
+      api_auth_url, api_auth_email, api_auth_password, api_account_search_url,
+      api_auth_header_name, api_auth_header_prefix, moneda_externa
     });
 
     await registrarAuditoria({
@@ -67,6 +69,7 @@ async function actualizarBanco(req, res) {
 
     const { nombre, codigo_banco, pais, api_url, api_token, api_json_template,
             api_auth_url, api_auth_email, api_auth_password, api_account_search_url,
+            api_auth_header_name, api_auth_header_prefix,
             moneda_externa, estado } = req.body;
 
     await bancoModel.update(id_banco, {
@@ -80,6 +83,8 @@ async function actualizarBanco(req, res) {
       api_auth_email: api_auth_email !== undefined ? api_auth_email : existe.api_auth_email,
       api_auth_password: api_auth_password !== undefined ? api_auth_password : existe.api_auth_password,
       api_account_search_url: api_account_search_url !== undefined ? api_account_search_url : existe.api_account_search_url,
+      api_auth_header_name: api_auth_header_name !== undefined ? api_auth_header_name : existe.api_auth_header_name,
+      api_auth_header_prefix: api_auth_header_prefix !== undefined ? api_auth_header_prefix : existe.api_auth_header_prefix,
       moneda_externa: moneda_externa !== undefined ? moneda_externa : existe.moneda_externa,
       estado: estado || existe.estado
     });

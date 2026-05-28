@@ -335,6 +335,10 @@ async function validarCuentaExterna(req, res) {
 
     let token = banco.api_token || "";
 
+    const authHeaderName = banco.api_auth_header_name || "Authorization";
+    const authHeaderPrefix = banco.api_auth_header_prefix !== null && banco.api_auth_header_prefix !== undefined
+      ? banco.api_auth_header_prefix : "Bearer ";
+
     // Login si aplica
     if (banco.api_auth_url) {
       const authResp = await axios.post(banco.api_auth_url, {
@@ -355,25 +359,30 @@ async function validarCuentaExterna(req, res) {
 
     const searchUrl = banco.api_account_search_url.replace(/\{\{numero_cuenta\}\}/g, cuenta_externa);
     const searchResp = await axios.get(searchUrl, {
-      headers: { Authorization: `Bearer ${token}`, "Accept": "application/json" },
+      headers: { [authHeaderName]: token ? authHeaderPrefix + token : "", "Accept": "application/json" },
       timeout: 15000
     });
 
     const data = searchResp.data?.data || searchResp.data;
+    const cuentaData = data.cuenta || data;
     res.json({
       valida: true,
       mensaje: "Cuenta encontrada correctamente",
       id_cuenta_destino: data.id || data.id_cuenta || null,
       cuenta: {
-        numero: data.numero_cuenta || data.numeroCuenta || cuenta_externa,
-        titular: data.titular || data.nombreTitular || data.cliente?.nombres + " " + data.cliente?.apellidos || null,
-        moneda: data.moneda || null
+        numero: cuentaData.numero_cuenta || cuentaData.numeroCuenta || cuentaData.numero || cuenta_externa,
+        titular: cuentaData.titular || cuentaData.nombreTitular || cuentaData.cliente?.nombres + " " + cuentaData.cliente?.apellidos || null,
+        moneda: cuentaData.moneda || data.moneda || null
       }
     });
   } catch (error) {
-    res.status(500).json({
+    const statusCode = error.response?.status || 500;
+    res.status(statusCode >= 400 && statusCode < 500 ? statusCode : 500).json({
       valida: false,
-      mensaje: error.response?.data?.message || error.response?.data?.mensaje || error.message
+      mensaje: error.response?.data?.message ||
+               error.response?.data?.mensaje ||
+               error.response?.data?.error ||
+               error.message
     });
   }
 }

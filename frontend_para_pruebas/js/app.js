@@ -378,6 +378,8 @@ async function editarBanco(id) {
     document.getElementById("banco-api-auth-email").value = banco.api_auth_email || "";
     document.getElementById("banco-api-auth-password").value = banco.api_auth_password || "";
     document.getElementById("banco-api-account-search-url").value = banco.api_account_search_url || "";
+    document.getElementById("banco-api-auth-header-name").value = banco.api_auth_header_name || "";
+    document.getElementById("banco-api-auth-header-prefix").value = banco.api_auth_header_prefix || "";
     document.getElementById("banco-moneda-externa").value = banco.moneda_externa || "";
     document.getElementById("banco-api-template").value = banco.api_json_template || "";
     document.getElementById("banco-submit-btn").textContent = "Actualizar Banco";
@@ -409,6 +411,8 @@ document.getElementById("form-banco").addEventListener("submit", async (e) => {
       api_auth_email: document.getElementById("banco-api-auth-email").value || null,
       api_auth_password: document.getElementById("banco-api-auth-password").value || null,
       api_account_search_url: document.getElementById("banco-api-account-search-url").value || null,
+      api_auth_header_name: document.getElementById("banco-api-auth-header-name").value || null,
+      api_auth_header_prefix: document.getElementById("banco-api-auth-header-prefix").value || null,
       moneda_externa: document.getElementById("banco-moneda-externa").value || null,
       api_json_template: document.getElementById("banco-api-template").value || null
     };

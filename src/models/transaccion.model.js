@@ -326,6 +326,14 @@ async function crearTransferenciaExterna(conn, {
   let httpStatusCode = null;
   let mensajeRespuesta = null;
 
+  const authHeaderName = bancoDestino.api_auth_header_name || "Authorization";
+  const authHeaderPrefix = bancoDestino.api_auth_header_prefix !== null && bancoDestino.api_auth_header_prefix !== undefined
+    ? bancoDestino.api_auth_header_prefix : "Bearer ";
+
+  function makeAuthHeader(token) {
+    return token ? authHeaderPrefix + token : "";
+  }
+
   try {
     // 1. Obtener token JWT si el banco tiene api_auth_url
     let token = bancoDestino.api_token || process.env.API_EXTERNA_TOKEN || "";
@@ -346,7 +354,7 @@ async function crearTransferenciaExterna(conn, {
     if (bancoDestino.api_account_search_url) {
       const searchUrl = bancoDestino.api_account_search_url.replace(/\{\{numero_cuenta\}\}/g, cuenta_destino_externa);
       await axios.get(searchUrl, {
-        headers: { Authorization: `Bearer ${token}`, "Accept": "application/json" },
+        headers: { [authHeaderName]: makeAuthHeader(token), "Accept": "application/json" },
         timeout: 15000
       });
     }
@@ -385,7 +393,7 @@ async function crearTransferenciaExterna(conn, {
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        Authorization: `Bearer ${token}`
+        [authHeaderName]: makeAuthHeader(token)
       },
       timeout: 15000
     });
@@ -394,8 +402,10 @@ async function crearTransferenciaExterna(conn, {
     const respData = respuestaExterna.data?.data || respuestaExterna.data;
     codigoReferenciaExterna = respData.codigo_confirmacion ||
                               respData.referencia_externa ||
+                              respData.detalle?.referencia ||
                               respuestaExterna.data?.codigo_confirmacion ||
-                              respuestaExterna.data?.referencia_externa || null;
+                              respuestaExterna.data?.referencia_externa ||
+                              respuestaExterna.data?.detalle?.referencia || null;
     mensajeRespuesta = respData.mensaje ||
                        respData.message ||
                        respuestaExterna.data?.mensaje ||
@@ -407,6 +417,7 @@ async function crearTransferenciaExterna(conn, {
     httpStatusCode = apiError.response?.status || null;
     mensajeRespuesta = apiError.response?.data?.message ||
                        apiError.response?.data?.mensaje ||
+                       apiError.response?.data?.error ||
                        apiError.message;
     estadoEnvio = "FALLIDA";
     estadoTransaccion = "RECHAZADA";
