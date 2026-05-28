@@ -69,7 +69,7 @@ export default function Navbar() {
     <aside className="sidebar">
       <div className="sidebar-header">
         <span className="sidebar-logo">🏦</span>
-        <span className="sidebar-title">ERP Bancario</span>
+        <span className="sidebar-title">URBANK</span>
       </div>
 
       <nav className="sidebar-nav">

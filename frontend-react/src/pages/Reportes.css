@@ -33,3 +33,33 @@
 .reporte-placeholder strong {
   color: #9ca3af;
 }
+.reporte-controles {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.reporte-filtros {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.reporte-filtros input {
+  height: 46px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 15px;
+  background: white;
+  color: #111827;
+}
+
+.dark .reporte-filtros input {
+  background: #111827;
+  color: #f9fafb;
+  border-color: #374151;
+}

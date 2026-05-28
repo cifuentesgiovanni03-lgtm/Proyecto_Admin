@@ -148,3 +148,50 @@
     grid-template-columns: 1fr;
   }
 }
+.form-divider {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  padding-top: 18px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.form-divider h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.form-divider p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.textarea-full {
+  grid-column: 1 / -1;
+}
+
+.form-group textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 15px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.edit-btn {
+  border: none;
+  background: #dbeafe;
+  color: #2563eb;
+  padding: 10px 16px;
+  border-radius: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.edit-btn:hover {
+  background: #bfdbfe;
+}

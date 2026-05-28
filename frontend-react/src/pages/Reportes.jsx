@@ -7,6 +7,8 @@ import './Reportes.css';
 export default function Reportes() {
   const [reporte, setReporte] = useState(null);
   const [tipo, setTipo] = useState('transacciones');
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -17,20 +19,26 @@ export default function Reportes() {
   };
 
   const titulos = {
-    transacciones: 'Reporte de Transacciones',
-    clientes: 'Reporte de Clientes',
-    saldos: 'Resumen de Saldos',
+    transacciones: 'Transacciones',
+    clientes: 'Clientes',
+    saldos: 'Saldos',
   };
 
   const fetchReporte = async () => {
     setError('');
     setLoading(true);
     setReporte(null);
+
     try {
-      const { data } = await api.get(endpoints[tipo]);
+      const params = {};
+
+      if (fechaInicio) params.fecha_inicio = fechaInicio;
+      if (fechaFin) params.fecha_fin = fechaFin;
+
+      const { data } = await api.get(endpoints[tipo], { params });
       setReporte(data);
-    } catch {
-      setError('Error al generar el reporte');
+    } catch (err) {
+      setError(err.response?.data?.mensaje || err.response?.data?.message || 'Error al generar el reporte');
     } finally {
       setLoading(false);
     }
@@ -38,18 +46,31 @@ export default function Reportes() {
 
   const renderTabla = () => {
     if (!reporte) return null;
+
     const rows = Array.isArray(reporte) ? reporte : reporte.datos || reporte.data || [];
-    if (rows.length === 0) return <p className="text-muted">No hay datos para mostrar.</p>;
+
+    if (rows.length === 0) {
+      return <p className="text-muted">No hay datos para mostrar.</p>;
+    }
+
     const cols = Object.keys(rows[0]);
+
     return (
       <table className="tabla">
         <thead>
-          <tr>{cols.map(c => <th key={c}>{c}</th>)}</tr>
+          <tr>
+            {cols.map((c) => (
+              <th key={c}>{c}</th>
+            ))}
+          </tr>
         </thead>
+
         <tbody>
           {rows.map((row, i) => (
             <tr key={i}>
-              {cols.map(c => <td key={c}>{row[c] ?? '-'}</td>)}
+              {cols.map((c) => (
+                <td key={c}>{row[c] ?? '-'}</td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -60,6 +81,7 @@ export default function Reportes() {
   return (
     <div className="layout">
       <Navbar />
+
       <main className="main-content">
         <div className="page-header">
           <div>
@@ -72,16 +94,38 @@ export default function Reportes() {
           <div className="reporte-controles">
             <div className="tipo-tabs">
               {Object.entries(titulos).map(([key, label]) => (
-                <button key={key} type="button"
+                <button
+                  key={key}
+                  type="button"
                   className={`tipo-tab ${tipo === key ? 'active' : ''}`}
-                  onClick={() => { setTipo(key); setReporte(null); }}>
+                  onClick={() => {
+                    setTipo(key);
+                    setReporte(null);
+                    setError('');
+                  }}
+                >
                   {label}
                 </button>
               ))}
             </div>
-            <button className="btn-primary" onClick={fetchReporte} disabled={loading}>
-              {loading ? 'Generando...' : 'Generar reporte'}
-            </button>
+
+            <div className="reporte-filtros">
+              <input
+                type="date"
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+              />
+
+              <input
+                type="date"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
+              />
+
+              <button className="btn-primary" onClick={fetchReporte} disabled={loading}>
+                {loading ? 'Generando...' : 'Generar'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -97,7 +141,10 @@ export default function Reportes() {
         {!reporte && !loading && !error && (
           <div className="card reporte-placeholder">
             <span>📊</span>
-            <p>Selecciona un tipo de reporte y haz clic en <strong>Generar reporte</strong></p>
+            <p>
+              Selecciona un tipo de reporte, rango de fechas y haz clic en{' '}
+              <strong>Generar</strong>
+            </p>
           </div>
         )}
       </main>

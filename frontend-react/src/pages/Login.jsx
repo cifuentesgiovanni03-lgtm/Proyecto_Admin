@@ -33,7 +33,7 @@ export default function Login() {
       <div className="login-card">
         <div className="login-header">
           <div className="login-logo">🏦</div>
-          <h1>ERP Bancario</h1>
+          <h1>URBANK</h1>
           <p>Ingresa tus credenciales para continuar</p>
         </div>
 
