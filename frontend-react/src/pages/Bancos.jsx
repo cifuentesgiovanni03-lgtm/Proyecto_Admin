@@ -14,6 +14,8 @@ const initialForm = {
   api_auth_email: '',
   api_auth_password: '',
   api_account_search_url: '',
+  api_auth_header_name: '',
+  api_auth_header_prefix: '',
 };
 
 export default function Bancos() {
@@ -61,6 +63,8 @@ export default function Bancos() {
       'api_auth_email',
       'api_auth_password',
       'api_account_search_url',
+      'api_auth_header_name',
+      'api_auth_header_prefix',
     ];
 
     optionalFields.forEach((field) => {
@@ -94,6 +98,8 @@ export default function Bancos() {
       api_auth_email: banco.api_auth_email || '',
       api_auth_password: banco.api_auth_password || '',
       api_account_search_url: banco.api_account_search_url || '',
+      api_auth_header_name: banco.api_auth_header_name || '',
+      api_auth_header_prefix: banco.api_auth_header_prefix || '',
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -204,6 +210,28 @@ export default function Bancos() {
                   value={form.api_token}
                   onChange={handleChange}
                   placeholder="Token si aplica"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Header auth name</label>
+                <input
+                  type="text"
+                  name="api_auth_header_name"
+                  value={form.api_auth_header_name}
+                  onChange={handleChange}
+                  placeholder="Ej: X-API-Key"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Header auth prefix</label>
+                <input
+                  type="text"
+                  name="api_auth_header_prefix"
+                  value={form.api_auth_header_prefix}
+                  onChange={handleChange}
+                  placeholder="Ej: Bearer o vacío"
                 />
               </div>
 
