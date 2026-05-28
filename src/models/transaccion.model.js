@@ -335,7 +335,7 @@ async function crearTransferenciaExterna(conn, {
         password: bancoDestino.api_auth_password
       };
       const authResp = await axios.post(bancoDestino.api_auth_url, authBody, {
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
         timeout: 15000
       });
       const data = authResp.data?.data || authResp.data;
@@ -346,7 +346,7 @@ async function crearTransferenciaExterna(conn, {
     if (bancoDestino.api_account_search_url) {
       const searchUrl = bancoDestino.api_account_search_url.replace(/\{\{numero_cuenta\}\}/g, cuenta_destino_externa);
       await axios.get(searchUrl, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, "Accept": "application/json" },
         timeout: 15000
       });
     }
@@ -384,6 +384,7 @@ async function crearTransferenciaExterna(conn, {
     respuestaExterna = await axios.post(apiUrl, requestBody, {
       headers: {
         "Content-Type": "application/json",
+        "Accept": "application/json",
         Authorization: `Bearer ${token}`
       },
       timeout: 15000
