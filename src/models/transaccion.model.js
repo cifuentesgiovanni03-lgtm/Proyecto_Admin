@@ -391,6 +391,7 @@ async function crearTransferenciaExterna(conn, {
           .replace(/\{\{moneda\}\}/g, bancoDestino.moneda_externa || cuentaOrigen.moneda)
           .replace(/\{\{descripcion\}\}/g, descripcion || "")
           .replace(/\{\{banco_externo\}\}/g, api_externa_nombre || bancoDestino.nombre)
+          .replace(/\{\{numero_cuenta_origen\}\}/g, cuentaOrigen.numero_cuenta || "")
           .replace(/\{\{id_cuenta_destino\}\}/g, id_cuenta_destino !== undefined ? id_cuenta_destino : cuenta_destino_externa)
       );
     } else {
@@ -417,10 +418,17 @@ async function crearTransferenciaExterna(conn, {
 
     httpStatusCode = respuestaExterna.status;
     const respData = respuestaExterna.data?.data || respuestaExterna.data;
+
+    if (respData.ok === false) {
+      throw new Error(respData.error || respData.mensaje || "La API externa rechazó la transferencia");
+    }
+
     codigoReferenciaExterna = respData.codigo_confirmacion ||
+                              respData.codigo_autorizacion ||
                               respData.referencia_externa ||
                               respData.detalle?.referencia ||
                               respuestaExterna.data?.codigo_confirmacion ||
+                              respuestaExterna.data?.codigo_autorizacion ||
                               respuestaExterna.data?.referencia_externa ||
                               respuestaExterna.data?.detalle?.referencia || null;
     mensajeRespuesta = respData.mensaje ||
