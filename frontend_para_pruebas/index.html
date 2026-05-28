@@ -223,8 +223,14 @@
             </div>
             <div class="form-row">
               <div class="form-group">
+                <label>ID cuenta destino (opcional, para {{id_cuenta_destino}})</label>
+                <input type="number" id="ext-id-cuenta-dest" placeholder="ID numerico del otro sistema">
+              </div>
+              <div class="form-group">
                 <button type="button" class="btn-secondary" onclick="validarCuentaDestino()" id="btn-validar-cuenta">Validar Cuenta</button>
               </div>
+            </div>
+            <div class="form-row">
               <div class="form-group">
                 <span id="ext-cuenta-validacion" style="font-size:0.85rem"></span>
               </div>

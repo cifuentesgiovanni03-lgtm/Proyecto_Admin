@@ -591,7 +591,12 @@ async function validarCuentaDestino() {
     });
     if (resp.ok) {
       const data = await resp.json();
-      msgEl.innerHTML = "<span style='color:green'>Cuenta validada: " + JSON.stringify(data) + "</span>";
+      const innerData = data.data || data;
+      const idDestino = innerData.id || innerData.id_cuenta;
+      if (idDestino) {
+        document.getElementById("ext-id-cuenta-dest").value = idDestino;
+      }
+      msgEl.innerHTML = "<span style='color:green'>Cuenta validada. ID destino: " + (idDestino || "?") + "</span>";
     } else {
       const errData = await resp.json().catch(() => ({}));
       msgEl.innerHTML = "<span style='color:red'>Cuenta NO validada: " + (errData.message || errData.mensaje || resp.statusText) + "</span>";
@@ -614,7 +619,8 @@ document.getElementById("form-transferencia-ext").addEventListener("submit", asy
         api_externa_nombre: document.getElementById("ext-api").value,
         id_banco_destino: Number(document.getElementById("ext-banco").value),
         cuenta_destino_externa: document.getElementById("ext-cuenta-dest").value,
-        titular_destino: document.getElementById("ext-titular").value
+        titular_destino: document.getElementById("ext-titular").value,
+        id_cuenta_destino: document.getElementById("ext-id-cuenta-dest").value || undefined
       })
     });
     showMessage(msgEl, "Transferencia externa: " + data.estado + " - " + data.mensaje_respuesta);

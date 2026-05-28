@@ -260,6 +260,7 @@ async function crearTransferenciaExterna(conn, {
   id_banco_destino,
   cuenta_destino_externa,
   titular_destino,
+  id_cuenta_destino,
   id_usuario
 }, axios) {
   const cuentaOrigen = await cuentaModel.findByIdForUpdate(conn, id_cuenta_origen);
@@ -365,6 +366,7 @@ async function crearTransferenciaExterna(conn, {
           .replace(/\{\{moneda\}\}/g, cuentaOrigen.moneda)
           .replace(/\{\{descripcion\}\}/g, descripcion || "")
           .replace(/\{\{banco_externo\}\}/g, api_externa_nombre || bancoDestino.nombre)
+          .replace(/\{\{id_cuenta_destino\}\}/g, id_cuenta_destino !== undefined ? id_cuenta_destino : cuenta_destino_externa)
       );
     } else {
       requestBody = {

@@ -242,7 +242,8 @@ async function crearTransferenciaExterna(req, res) {
   try {
     const {
       id_cuenta_origen, monto, descripcion,
-      api_externa_nombre, id_banco_destino, cuenta_destino_externa, titular_destino
+      api_externa_nombre, id_banco_destino, cuenta_destino_externa, titular_destino,
+      id_cuenta_destino
     } = req.body;
 
     const id_usuario = req.usuario.id_usuario;
@@ -269,6 +270,7 @@ async function crearTransferenciaExterna(req, res) {
       {
         id_cuenta_origen, monto, descripcion,
         api_externa_nombre, id_banco_destino, cuenta_destino_externa, titular_destino,
+        id_cuenta_destino: id_cuenta_destino !== undefined ? Number(id_cuenta_destino) : undefined,
         id_usuario
       },
       axios
@@ -286,6 +288,7 @@ async function crearTransferenciaExterna(req, res) {
         id_banco_destino,
         banco_destino: resultado.banco_destino,
         cuenta_destino_externa,
+        id_cuenta_destino,
         monto,
         estado_envio: resultado.estado
       }

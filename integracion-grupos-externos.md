@@ -39,7 +39,7 @@ ALTER TABLE bancos
 | `api_auth_email` | `bancoexterno@grupoadmin.com` | Email para autenticacion |
 | `api_auth_password` | `Guate123*` | Contraseña para autenticacion |
 | `api_account_search_url` | `http://157.137.186.211:5254/api/external/ach/cuentas/search/{{numero_cuenta}}` | URL para validar cuenta destino |
-| `api_json_template` | `{"codigo_confirmacion":"{{referencia_interna}}","banco_externo":"{{banco_externo}}","cuenta_externa":"{{cuenta_destino_externa}}","numeroCuentaDestino":"{{cuenta_destino_externa}}","monto":{{monto}},"moneda":"{{moneda}}","referencia":"{{descripcion}}","tipo":"entrante"}` | Template del body |
+| `api_json_template` | `{"tipo":"entrante","moneda":"{{moneda}}","monto":{{monto}},"banco_externo":"{{banco_externo}}","cuenta_externa":"{{cuenta_destino_externa}}","codigo_confirmacion":"{{referencia_interna}}","id_cuenta_destino":{{id_cuenta_destino}},"id_cuenta_origen":null,"referencia":"{{descripcion}}"}` | Template del body |
 
 ---
 
@@ -54,6 +54,9 @@ ALTER TABLE bancos
 | `{{moneda}}` | Moneda de la cuenta origen |
 | `{{descripcion}}` | Descripcion de la transferencia |
 | `{{banco_externo}}` | Nombre del banco externo (campo `api_externa_nombre`) |
+| `{{id_cuenta_destino}}` | ID numerico interno de la cuenta destino en el otro sistema (campo opcional del formulario) |
+
+> **Importante:** Para APIs que requieren `id_cuenta_destino` (ID interno, no el numero de cuenta), usa `{{id_cuenta_destino}}` en el template. El campo es opcional en el formulario de transferencia. Si no se proporciona, se usa el valor de `{{cuenta_destino_externa}}` como fallback.
 
 ---
 
