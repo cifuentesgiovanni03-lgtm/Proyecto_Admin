@@ -4,7 +4,24 @@ const cuentaModel = require("./cuenta.model");
 
 async function findAll() {
   const [rows] = await pool.query(
-    `SELECT * FROM transacciones ORDER BY id_transaccion DESC`
+    `SELECT
+       t.*,
+       tt.nombre AS tipo_transaccion,
+       co.numero_cuenta AS numero_cuenta_origen,
+       cd.numero_cuenta AS numero_cuenta_destino,
+       te.cuenta_destino_externa,
+       te.codigo_referencia_interna,
+       te.codigo_referencia_externa,
+       tee.cuenta_origen_externa,
+       tee.codigo_referencia_externa AS ref_entrante,
+       (SELECT m.saldo_nuevo FROM movimientos_cuenta m WHERE m.id_transaccion = t.id_transaccion ORDER BY m.id_movimiento DESC LIMIT 1) AS saldo_final
+     FROM transacciones t
+     INNER JOIN tipos_transaccion tt ON t.id_tipo_transaccion = tt.id_tipo_transaccion
+     LEFT JOIN cuentas co ON t.id_cuenta_origen = co.id_cuenta
+     LEFT JOIN cuentas cd ON t.id_cuenta_destino = cd.id_cuenta
+     LEFT JOIN transferencias_externas te ON t.id_transaccion = te.id_transaccion
+     LEFT JOIN transferencias_externas_entrantes tee ON t.id_transaccion = tee.id_transaccion
+     ORDER BY t.fecha_transaccion DESC`
   );
   return rows;
 }
