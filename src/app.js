@@ -17,6 +17,7 @@ const usuariosRoutes = require("./routes/usuarios.routes");
 const rolesRoutes = require("./routes/roles.routes");
 const permisosRoutes = require("./routes/permisos.routes");
 const publicRoutes = require("./routes/public.routes");
+const logsRoutes = require("./routes/logs.routes");
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use("/api/usuarios", usuariosRoutes);
 app.use("/api/roles", rolesRoutes);
 app.use("/api/permisos", permisosRoutes);
 app.use("/api/public", publicRoutes);
+app.use("/api", logsRoutes);
 
 const PORT = process.env.PORT || 3000;
 
