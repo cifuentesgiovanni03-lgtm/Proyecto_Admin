@@ -1,0 +1,113 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* ── Tema oscuro (por defecto) ── */
+body, body[data-tema="oscuro"] {
+  --bg-base: #0f1117;
+  --bg-card: #181c27;
+  --bg-input: #0f1117;
+  --border: rgba(255,255,255,0.07);
+  --border-input: rgba(255,255,255,0.1);
+  --text-primary: #ffffff;
+  --text-secondary: #d1d5db;
+  --text-muted: #6b7280;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --sidebar-bg: #181c27;
+  --link-active-bg: rgba(59,130,246,0.15);
+  --link-active-color: #60a5fa;
+}
+
+/* ── Tema claro ── */
+body[data-tema="claro"] {
+  --bg-base: #f3f4f6;
+  --bg-card: #ffffff;
+  --bg-input: #f9fafb;
+  --border: rgba(0,0,0,0.08);
+  --border-input: rgba(0,0,0,0.15);
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --sidebar-bg: #ffffff;
+  --link-active-bg: rgba(37,99,235,0.1);
+  --link-active-color: #2563eb;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  transition: background 0.2s, color 0.2s;
+}
+
+/* Corrección global para pantallas nuevas en tema oscuro */
+body[data-tema='oscuro'] .app-layout,
+body[data-tema='oscuro'] .layout,
+body[data-tema='oscuro'] .main-content,
+body[data-tema='oscuro'] .page-content {
+  background: #0f1117 !important;
+  color: #f9fafb !important;
+}
+
+body[data-tema='oscuro'] h1,
+body[data-tema='oscuro'] h2,
+body[data-tema='oscuro'] h3,
+body[data-tema='oscuro'] .page-header h1,
+body[data-tema='oscuro'] .dashboard-header h1 {
+  color: #f9fafb !important;
+}
+
+body[data-tema='oscuro'] p,
+body[data-tema='oscuro'] .page-header p,
+body[data-tema='oscuro'] .dashboard-header p,
+body[data-tema='oscuro'] .text-muted {
+  color: #9ca3af !important;
+}
+
+body[data-tema='oscuro'] .form-card,
+body[data-tema='oscuro'] .table-card,
+body[data-tema='oscuro'] .stat-card,
+body[data-tema='oscuro'] .action-card,
+body[data-tema='oscuro'] .summary-card,
+body[data-tema='oscuro'] .modal-card {
+  background: #171b25 !important;
+  border-color: #2a3040 !important;
+  color: #f9fafb !important;
+}
+
+body[data-tema='oscuro'] table,
+body[data-tema='oscuro'] th,
+body[data-tema='oscuro'] td {
+  color: #f9fafb !important;
+  border-color: #2a3040 !important;
+}
+
+body[data-tema='oscuro'] th {
+  color: #9ca3af !important;
+}
+
+body[data-tema='oscuro'] input,
+body[data-tema='oscuro'] select,
+body[data-tema='oscuro'] textarea {
+  background: #10141f !important;
+  border-color: #374151 !important;
+  color: #f9fafb !important;
+}
+
+body[data-tema='oscuro'] input::placeholder,
+body[data-tema='oscuro'] textarea::placeholder {
+  color: #6b7280 !important;
+}
+
+body[data-tema='oscuro'] .table-card tbody tr:hover {
+  background: #1f2937 !important;
+}
