@@ -345,7 +345,7 @@ async function crearTransferenciaExterna(conn, {
 
   const authHeaderName = bancoDestino.api_auth_header_name || "Authorization";
   const authHeaderPrefix = bancoDestino.api_auth_header_prefix !== null && bancoDestino.api_auth_header_prefix !== undefined
-    ? bancoDestino.api_auth_header_prefix : "Bearer ";
+    ? bancoDestino.api_auth_header_prefix : (authHeaderName === "Authorization" ? "Bearer " : "");
 
   function makeAuthHeader(token) {
     return token ? authHeaderPrefix + token : "";

@@ -35,8 +35,8 @@ async function create({ nombre, codigo_banco, pais, api_url, api_token, api_json
                          moneda_externa)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [nombre, codigo_banco, pais || "Guatemala", api_url || null, api_token || null, api_json_template || null,
-     api_auth_url || null, api_auth_email || null, api_auth_password || null, api_account_search_url || null,
-     api_auth_header_name || null, api_auth_header_prefix || null,
+      api_auth_url || null, api_auth_email || null, api_auth_password || null, api_account_search_url || null,
+     api_auth_header_name || null, api_auth_header_prefix !== undefined ? api_auth_header_prefix : null,
      moneda_externa || null]
   );
   return result.insertId;
@@ -55,7 +55,7 @@ async function update(id, { nombre, codigo_banco, pais, api_url, api_token, api_
      WHERE id_banco = ?`,
     [nombre, codigo_banco, pais, api_url || null, api_token || null, api_json_template || null,
      api_auth_url || null, api_auth_email || null, api_auth_password || null, api_account_search_url || null,
-     api_auth_header_name || null, api_auth_header_prefix || null,
+     api_auth_header_name || null, api_auth_header_prefix !== undefined ? api_auth_header_prefix : null,
      moneda_externa || null, estado || "ACTIVO", id]
   );
 }

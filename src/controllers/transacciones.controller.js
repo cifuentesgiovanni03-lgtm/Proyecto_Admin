@@ -337,7 +337,7 @@ async function validarCuentaExterna(req, res) {
 
     const authHeaderName = banco.api_auth_header_name || "Authorization";
     const authHeaderPrefix = banco.api_auth_header_prefix !== null && banco.api_auth_header_prefix !== undefined
-      ? banco.api_auth_header_prefix : "Bearer ";
+      ? banco.api_auth_header_prefix : (authHeaderName === "Authorization" ? "Bearer " : "");
 
     // Login si aplica
     if (banco.api_auth_url) {

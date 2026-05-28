@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bitácora - ERP Bancario</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f1f5f9; padding: 20px; color: #1e293b; }
+    h1 { margin-bottom: 20px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab-btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; background: #e2e8f0; font-weight: 600; }
+    .tab-btn.active { background: #3b82f6; color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .filtros { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: end; }
+    .filtros input, .filtros select { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+    .filtros button { padding: 8px 16px; border: none; border-radius: 6px; background: #3b82f6; color: #fff; cursor: pointer; font-weight: 600; }
+    .filtros button:hover { background: #2563eb; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+    th { background: #f8fafc; font-weight: 700; color: #475569; }
+    tr:hover { background: #f1f5f9; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+    .badge-info { background: #dbeafe; color: #1d4ed8; }
+    .badge-warn { background: #fef3c7; color: #b45309; }
+    .badge-error { background: #fee2e2; color: #b91c1c; }
+    .badge-success { background: #dcfce7; color: #15803d; }
+    .pagination { margin-top: 15px; display: flex; gap: 8px; align-items: center; }
+    .pagination button { padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; cursor: pointer; }
+    .pagination button:disabled { opacity: .5; cursor: default; }
+    .loading { text-align: center; padding: 40px; color: #94a3b8; }
+    .detalle { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+    .detalle:hover { overflow: visible; white-space: normal; word-break: break-all; background: #f8fafc; position: relative; }
+    .error-msg { color: #dc2626; padding: 12px; background: #fee2e2; border-radius: 6px; margin-bottom: 15px; }
+    label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 3px; }
+  </style>
+</head>
+<body>
+  <h1>📋 Bitácora del Sistema</h1>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="logs">Logs del Sistema</button>
+    <button class="tab-btn" data-tab="auditoria">Auditoría</button>
+    <button class="tab-btn" data-tab="reportes">Reportes Generados</button>
+  </div>
+
+  <!-- LOGS -->
+  <div id="tab-logs" class="tab-content active">
+    <div class="filtros">
+      <div><label>Nivel</label><select id="filtro-log-nivel"><option value="">Todos</option><option>INFO</option><option>WARN</option><option>ERROR</option></select></div>
+      <div><label>Módulo</label><input type="text" id="filtro-log-modulo" placeholder="Ej: TRANSACCIONES"></div>
+      <div><label>Límite</label><input type="number" id="filtro-log-limite" value="50" style="width:70px"></div>
+      <button onclick="cargarLogs()">Buscar</button>
+    </div>
+    <div id="logs-container"><p class="loading">Cargando...</p></div>
+  </div>
+
+  <!-- AUDITORIA -->
+  <div id="tab-auditoria" class="tab-content">
+    <div class="filtros">
+      <div><label>Entidad</label><input type="text" id="filtro-aud-entidad" placeholder="Ej: bancos, transacciones"></div>
+      <div><label>Acción</label><input type="text" id="filtro-aud-accion" placeholder="Ej: CREAR, ACTUALIZAR"></div>
+      <div><label>Límite</label><input type="number" id="filtro-aud-limite" value="50" style="width:70px"></div>
+      <button onclick="cargarAuditoria()">Buscar</button>
+    </div>
+    <div id="auditoria-container"><p class="loading">Cargando...</p></div>
+  </div>
+
+  <!-- REPORTES -->
+  <div id="tab-reportes" class="tab-content">
+    <div class="filtros">
+      <div><label>Tipo reporte</label><input type="text" id="filtro-rep-tipo" placeholder="Ej: CLIENTES, SALDOS"></div>
+      <div><label>Límite</label><input type="number" id="filtro-rep-limite" value="30" style="width:70px"></div>
+      <button onclick="cargarReportes()">Buscar</button>
+    </div>
+    <div id="reportes-container"><p class="loading">Cargando...</p></div>
+  </div>
+
+  <script>
+    const API = "https://proyectoadmin-production.up.railway.app/api";
+    let token = localStorage.getItem("token");
+
+    if (!token) {
+      document.body.innerHTML = '<div style="padding:40px;text-align:center"><h2>Debes iniciar sesión primero</h2><p>Abre el <a href="index.html">panel principal</a> y luego volvé acá.</p></div>';
+    }
+
+    function escHtml(str) {
+      if (!str) return "-";
+      const d = document.createElement("div");
+      d.appendChild(document.createTextNode(String(str)));
+      return d.innerHTML;
+    }
+
+    function nivelBadge(nivel) {
+      const map = { INFO: "badge-info", WARN: "badge-warn", ERROR: "badge-error" };
+      return `<span class="badge ${map[nivel] || 'badge-info'}">${escHtml(nivel)}</span>`;
+    }
+
+    async function apiFetch(path) {
+      const res = await fetch(API + path, { headers: { Authorization: "Bearer " + token } });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Error " + res.status);
+      }
+      return res.json();
+    }
+
+    // ----- Logs -----
+    async function cargarLogs() {
+      const el = document.getElementById("logs-container");
+      el.innerHTML = '<p class="loading">Cargando...</p>';
+      try {
+        const nivel = document.getElementById("filtro-log-nivel").value;
+        const modulo = document.getElementById("filtro-log-modulo").value;
+        const limite = document.getElementById("filtro-log-limite").value;
+        const params = new URLSearchParams();
+        if (nivel) params.set("nivel", nivel);
+        if (modulo) params.set("modulo", modulo);
+        if (limite) params.set("limite", limite);
+        const data = await apiFetch("/logs?" + params.toString());
+        if (!data.length) { el.innerHTML = "<p style='text-align:center;color:#94a3b8'>Sin resultados</p>"; return; }
+        let html = `<table><thead><tr><th>Fecha</th><th>Nivel</th><th>Módulo</th><th>Mensaje</th><th>Usuario</th><th>Transacción</th></tr></thead><tbody>`;
+        data.forEach(r => {
+          html += `<tr>
+            <td>${new Date(r.fecha).toLocaleString('es-GT')}</td>
+            <td>${nivelBadge(r.nivel)}</td>
+            <td>${escHtml(r.modulo)}</td>
+            <td class="detalle" title="${escHtml(JSON.stringify(r.mensaje))}">${escHtml(typeof r.mensaje === 'object' ? JSON.stringify(r.mensaje) : r.mensaje)}</td>
+            <td>${escHtml(r.usuario_id)}</td>
+            <td>${escHtml(r.transaccion_id || '-')}</td>
+          </tr>`;
+        });
+        html += "</tbody></table>";
+        el.innerHTML = html;
+      } catch (err) { el.innerHTML = `<p class="error-msg">${escHtml(err.message)}</p>`; }
+    }
+
+    // ----- Auditoria -----
+    async function cargarAuditoria() {
+      const el = document.getElementById("auditoria-container");
+      el.innerHTML = '<p class="loading">Cargando...</p>';
+      try {
+        const entidad = document.getElementById("filtro-aud-entidad").value;
+        const accion = document.getElementById("filtro-aud-accion").value;
+        const limite = document.getElementById("filtro-aud-limite").value;
+        const params = new URLSearchParams();
+        if (entidad) params.set("entidad", entidad);
+        if (accion) params.set("accion", accion);
+        if (limite) params.set("limite", limite);
+        const data = await apiFetch("/auditoria?" + params.toString());
+        if (!data.length) { el.innerHTML = "<p style='text-align:center;color:#94a3b8'>Sin resultados</p>"; return; }
+        let html = `<table><thead><tr><th>Fecha</th><th>Acción</th><th>Entidad</th><th>ID Entidad</th><th>Usuario</th><th>Detalle</th></tr></thead><tbody>`;
+        data.forEach(r => {
+          const detalle = r.detalle ? (typeof r.detalle === 'object' ? JSON.stringify(r.detalle) : r.detalle) : "-";
+          html += `<tr>
+            <td>${new Date(r.fecha).toLocaleString('es-GT')}</td>
+            <td>${escHtml(r.accion)}</td>
+            <td>${escHtml(r.entidad)}</td>
+            <td>${escHtml(r.entidad_id)}</td>
+            <td>${escHtml(r.usuario_id)}</td>
+            <td class="detalle" title="${escHtml(detalle)}">${escHtml(detalle)}</td>
+          </tr>`;
+        });
+        html += "</tbody></table>";
+        el.innerHTML = html;
+      } catch (err) { el.innerHTML = `<p class="error-msg">${escHtml(err.message)}</p>`; }
+    }
+
+    // ----- Reportes -----
+    async function cargarReportes() {
+      const el = document.getElementById("reportes-container");
+      el.innerHTML = '<p class="loading">Cargando...</p>';
+      try {
+        const tipo = document.getElementById("filtro-rep-tipo").value;
+        const limite = document.getElementById("filtro-rep-limite").value;
+        const params = new URLSearchParams();
+        if (tipo) params.set("tipo_reporte", tipo);
+        if (limite) params.set("limite", limite);
+        const data = await apiFetch("/reportes-generados?" + params.toString());
+        if (!data.length) { el.innerHTML = "<p style='text-align:center;color:#94a3b8'>Sin resultados</p>"; return; }
+        let html = `<table><thead><tr><th>Fecha</th><th>Tipo Reporte</th><th>Formato</th><th>Usuario</th><th>Parámetros</th></tr></thead><tbody>`;
+        data.forEach(r => {
+          const params = r.parametros ? (typeof r.parametros === 'object' ? JSON.stringify(r.parametros) : r.parametros) : "-";
+          html += `<tr>
+            <td>${new Date(r.fecha_generacion).toLocaleString('es-GT')}</td>
+            <td>${escHtml(r.tipo_reporte)}</td>
+            <td>${escHtml(r.formato)}</td>
+            <td>${escHtml(r.usuario_id)}</td>
+            <td class="detalle" title="${escHtml(params)}">${escHtml(params)}</td>
+          </tr>`;
+        });
+        html += "</tbody></table>";
+        el.innerHTML = html;
+      } catch (err) { el.innerHTML = `<p class="error-msg">${escHtml(err.message)}</p>`; }
+    }
+
+    // ----- Tabs -----
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+        if (btn.dataset.tab === "logs") cargarLogs();
+        if (btn.dataset.tab === "auditoria") cargarAuditoria();
+        if (btn.dataset.tab === "reportes") cargarReportes();
+      });
+    });
+
+    // Cargar logs al inicio
+    cargarLogs();
+  </script>
+</body>
+</html>
