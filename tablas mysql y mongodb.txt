@@ -192,7 +192,8 @@ ALTER TABLE bancos
   ADD COLUMN api_auth_url VARCHAR(500) NULL AFTER api_json_template,
   ADD COLUMN api_auth_email VARCHAR(200) NULL AFTER api_auth_url,
   ADD COLUMN api_auth_password VARCHAR(500) NULL AFTER api_auth_email,
-  ADD COLUMN api_account_search_url VARCHAR(500) NULL AFTER api_auth_password;
+  ADD COLUMN api_account_search_url VARCHAR(500) NULL AFTER api_auth_password,
+  ADD COLUMN moneda_externa VARCHAR(10) NULL AFTER api_account_search_url;
 
 mysql> exit
 Bye

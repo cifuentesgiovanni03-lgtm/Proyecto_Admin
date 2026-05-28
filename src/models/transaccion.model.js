@@ -363,7 +363,7 @@ async function crearTransferenciaExterna(conn, {
           .replace(/\{\{cuenta_destino_externa\}\}/g, cuenta_destino_externa)
           .replace(/\{\{titular_destino\}\}/g, titular_destino || "")
           .replace(/\{\{referencia_interna\}\}/g, referenciaInterna)
-          .replace(/\{\{moneda\}\}/g, cuentaOrigen.moneda)
+          .replace(/\{\{moneda\}\}/g, bancoDestino.moneda_externa || cuentaOrigen.moneda)
           .replace(/\{\{descripcion\}\}/g, descripcion || "")
           .replace(/\{\{banco_externo\}\}/g, api_externa_nombre || bancoDestino.nombre)
           .replace(/\{\{id_cuenta_destino\}\}/g, id_cuenta_destino !== undefined ? id_cuenta_destino : cuenta_destino_externa)
@@ -375,7 +375,7 @@ async function crearTransferenciaExterna(conn, {
         titular_destino,
         banco_destino: bancoDestino.nombre,
         monto: montoTransferencia,
-        moneda: cuentaOrigen.moneda,
+        moneda: bancoDestino.moneda_externa || cuentaOrigen.moneda,
         descripcion
       };
     }
