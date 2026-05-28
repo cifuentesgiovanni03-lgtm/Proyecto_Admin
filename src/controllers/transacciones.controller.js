@@ -166,7 +166,7 @@ async function crearTransferenciaEntrante(req, res) {
       codigo_referencia_externa
     } = req.body;
 
-    const id_usuario = req.usuario?.id_usuario || null;
+    const id_usuario = req.usuario?.id_usuario || 1;
 
     if (
       !id_cuenta_destino || !monto ||
