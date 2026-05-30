@@ -38,20 +38,18 @@ router.post(
 router.post(
   "/transferencia-externa",
   verificarToken,
-  verificarPermiso("REALIZAR_TRANSFERENCIA_EXTERNA"),
   crearTransferenciaExterna
-);
-
-router.post(
-  "/transferencia-entrante",
-  crearTransferenciaEntrante
 );
 
 router.post(
   "/validar-cuenta-externa",
   verificarToken,
-  verificarPermiso("REALIZAR_TRANSFERENCIA_EXTERNA"),
   validarCuentaExterna
+);
+
+router.post(
+  "/transferencia-entrante",
+  crearTransferenciaEntrante
 );
 
 module.exports = router;
