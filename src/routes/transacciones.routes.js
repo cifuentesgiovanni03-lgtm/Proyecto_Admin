@@ -42,14 +42,13 @@ router.post(
 );
 
 router.post(
-  "/validar-cuenta-externa",
-  verificarToken,
-  validarCuentaExterna
+  "/transferencia-entrante",
+  crearTransferenciaEntrante
 );
 
 router.post(
-  "/transferencia-entrante",
-  crearTransferenciaEntrante
+  "/validar-cuenta-externa",
+  validarCuentaExterna
 );
 
 module.exports = router;
