@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const usuarioModel = require("../models/usuario.model");
 const { registrarLog } = require("../services/auditoria.service");
+const JWT_SECRET = process.env.JWT_SECRET || "c3VwZXJfc2VjcmV0b19lcnBfYmFuY2FyaW8K";
 
 async function login(req, res) {
   try {
@@ -25,7 +26,7 @@ async function login(req, res) {
         id_rol: usuario.id_rol,
         rol: usuario.rol
       },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: "8h" }
     );
 

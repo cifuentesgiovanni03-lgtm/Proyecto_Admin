@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const JWT_SECRET = process.env.JWT_SECRET || "c3VwZXJfc2VjcmV0b19lcnBfYmFuY2FyaW8K";
 
 function verificarToken(req, res, next) {
   try {
@@ -19,7 +20,7 @@ function verificarToken(req, res, next) {
     }
 
     const token = parts[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
 
     req.usuario = decoded;
     next();
